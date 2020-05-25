@@ -49,7 +49,7 @@ public:
     struct Face
     {
         int cluster_id;
-        bool is_visited;  // used in Breath-first search to get connected components in clusters
+        bool is_visited;  // used in Breadth-first search to get connected components in clusters
         bool is_valid;    // false if this face is removed.
         int indices[3];
         CovObj cov;
@@ -74,6 +74,7 @@ public:
     ~Partition();
     bool readPLY(const std::string& filename);
     bool writePLY(const std::string& filename);
+    bool writePLY(const std::string& filename, int num_clusters);
     bool runPartitionPipeline();
     void writeClusterFile(const std::string& filename);
     bool readClusterFile(const std::string& filename);
@@ -169,7 +170,7 @@ private:
     bool flag_new_mesh_;  // true if removing some faces/vertices/clusters; false by default
 
     // These are used to balance the importance of point and triangle quadrics, respectively.
-    // However, actually equal values are good in experiments.
+    // However, equal values work well in experiments.
     const double kFaceCoefficient = 1.0, kPointCoefficient = 1.0;
     int curr_edge_num_;
 };

@@ -397,6 +397,7 @@ bool Partition::writePLY(const std::string& filename)
     fprintf(fout, "property float x\n");
     fprintf(fout, "property float y\n");
     fprintf(fout, "property float z\n");
+
     int fnum = flag_new_mesh_ ? new_face_num_ : face_num_;
     fprintf(fout, "element face %d\n", fnum);
     fprintf(fout, "property list uchar int vertex_indices\n");
@@ -410,7 +411,8 @@ bool Partition::writePLY(const std::string& filename)
     fprintf(fout, "end_header\n");
     float pt3[3];
     unsigned char kFaceVtxNum = 3;
-    unsigned char rgba[4] = {255};
+    unsigned char rgba[4] = {255, 255, 255, 255};
+    unsigned char rgb[3] = {255, 255, 255};
     for (int i = 0; i != vertex_num_; ++i)
     {
         if (!flag_new_mesh_ || vertices_[i].is_valid)
@@ -463,13 +465,14 @@ void Partition::writeClusterFile(const std::string& filename)
     writeout << curr_cluster_num_ << endl;
 
     FILE* fout = fopen(filename.c_str(), "wb");
+
     fwrite(&curr_cluster_num_, sizeof(int), 1, fout);  // #clusters at first
     float color[3];
     int new_cidx = 0, count_faces = 0;
     for (int cidx = 0; cidx < init_cluster_num_; ++cidx)
     {
-        if (!isClusterValid(cidx))
-            continue;
+        if (!isClusterValid(cidx))  // returns true if the list of faces isn't empty
+            continue;  // skip one instance of loop
         int num = int(clusters_[cidx].faces.size());
         fwrite(&new_cidx, sizeof(int), 1, fout);  // cluster index
         fwrite(&num, sizeof(int), 1, fout);       // #faces in this cluster

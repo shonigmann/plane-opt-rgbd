@@ -89,5 +89,17 @@ int main(int argc, char** argv)
         partition.writeClusterFile(out_cluster_fname);
         PRINT_GREEN("ALL DONE.");
     }
+/*
+    Partition partition_reduced;
+    PRINT_GREEN("Read ply file: %s", out_cluster_fname.c_str());
+    if (!partition_reduced.readPLY(out_cluster_fname))
+    {
+        PRINT_RED("ERROR in reading ply file %s", out_cluster_fname.c_str());
+        return -1;
+    }
+    partition_reduced.printModelInfo();
+
+    // TODO: add ordering step prior to writing final PLYpartition_reduced.
+*/
     return 0;
 }

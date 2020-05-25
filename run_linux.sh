@@ -2,33 +2,33 @@
 
 # This is the original RGB-D data including color images, depth images and camera pose files
 # RGBD=/home/chao/dev/data/bundlefusion/copyroom/copyroom
-RGBD=/home/chao/dev/data/ICL-NUIM/of_kt2/rgbd
+RGBD=/home/simon/Documents/Bundle_Fusion_Dataset/office3_data/frames_and_poses
 # RGBD=/home/chao/dev/data/bundlefusion/office2/office2
 
 # Working directory contains the input PLY model. All output files will be put inside this directory.
 # WORKINGDIR=/home/chao/dev/data/bundlefusion/copyroom
 # WORKINGDIR=/home/chao/dev/data/bundlefusion/office2
-WORKINGDIR=/home/chao/dev/data/ICL-NUIM/of_kt2
+WORKINGDIR=/home/simon/Documents/Bundle_Fusion_Dataset/office3_data
 
 # PLY filename
 # PLYNAME=copyroom
 # PLYNAME=office2
-PLYNAME=of_kt2
+PLYNAME=office3
 
 # 0 for BundleFusion/3DLite data, 1 for ICL-NUIM data (image type, camera pose details are different)
 # DATATYPE=0
-DATATYPE=1
+DATATYPE=0
 
 # Target cluster/plane number in mesh partition
 CLUSTERNUM=2000
 
 # Start and end frame index
 # START=0
-START=1 # lr_kt2 or of_kt2 starts from frame 1 instead of 0
+START=0 # lr_kt2 or of_kt2 starts from frame 1 instead of 0
 # END=4479 # copyroom
 # END=100 # for test
 # END=6158
-END=880 # lr_kt2 or of_kt2
+END=50 # lr_kt2 or of_kt2
 # END=3499 # office2
 # END=3819 # office3
 
