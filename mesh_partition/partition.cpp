@@ -397,6 +397,13 @@ bool Partition::writePLY(const std::string& filename)
     fprintf(fout, "property float x\n");
     fprintf(fout, "property float y\n");
     fprintf(fout, "property float z\n");
+    if (FLAGS_output_mesh_face_color)
+    {
+        fprintf(fout, "property uchar red\n");  // face color
+        fprintf(fout, "property uchar green\n");
+        fprintf(fout, "property uchar blue\n");
+        fprintf(fout, "property uchar alpha\n");
+    }
 
     int fnum = flag_new_mesh_ ? new_face_num_ : face_num_;
     fprintf(fout, "element face %d\n", fnum);
