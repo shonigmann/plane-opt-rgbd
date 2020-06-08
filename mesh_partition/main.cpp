@@ -86,9 +86,8 @@ int main(int argc, char** argv)
         partition.writePLY(out_ply_fname);
 
         PRINT_YELLOW("STARTING INJECTED CODE: ");
-        PRINT_YELLOW("TODO: WRITE PLY FILES FOR TOP N MESH CLUSTERS");
-        partition.doubleCheckClusters();
-        PRINT_GREEN("Final cluster number: %d", partition.getCurrentClusterNum());
+//        partition.doubleCheckClusters();
+//        PRINT_GREEN("Final cluster number: %d", partition.getCurrentClusterNum());
         partition.updateClusters();
 
 //        partition.writePLY("bc_test.ply", 2);

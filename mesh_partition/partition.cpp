@@ -580,19 +580,63 @@ bool Partition::writeTopPLYs(const std::string& basefilename, double area_thresh
     //----------------------------------------------------------------
     //----------------------------------------------------------------
 
-    // TODO: run PCA
+//    // Store faces and vertices associated with current cluster
+//    vector<Face> cn_faces;
+//    vector<Vertex> cn_vertices;
+//    std::map<int, int> vertex_map; //old (complete list) to new (subset list) vertex index map
+
+//    int vnum = 0;
+
+//    // Get Faces in Cluster
+//    for (int fidx : clusters_[c].faces)
+//    {
+//      if(faces_[fidx].is_valid)
+//      {
+// //        faces_[fidx].cluster_id = c; //reset the face's cluster ID since the clusters have now been sorted
+//        Face f;
+//        f.cluster_id = faces_[fidx].cluster_id;
+//        f.area = faces_[fidx].area;
+//        f.is_valid = faces_[fidx].is_valid;
+//        for(int i = 0; i<3; i++){
+//          f.indices[i] = faces_[fidx].indices[i];
+//        }
+
+//        cn_faces.push_back(f);  //before i was pushing the original which could cause issues due to dynamically sized objects in the struct (e.g. the unordered set)
+
+//        //add each vertex of the face to the set and map
+//        for(int v = 0; v < 3; v++)
+//        {
+//          int idx = faces_[fidx].indices[v];
+//          if(vertex_map.count(idx) < 1)
+//          {
+//            // adding new vertex to the list
+//            vertex_map[idx] = vnum;
+
+//            Vertex vert_copy;
+//            vert_copy.is_valid = vertices_[idx].is_valid;
+//            vert_copy.pt = vertices_[idx].pt;
+//            vert_copy.cluster_id = vertices_[idx].cluster_id;
+
+//            cn_vertices.push_back(vert_copy);
+//            vnum++;
+//          }
+//        }
+//      }
+//    }
+//    int fnum = cn_faces.size();
+
+    //----------------------------------------------------------------
+    //----------------------------------------------------------------
+    //----------------------------------------------------------------
 
     // TODO: secondary filtering based on PCA results
 
-    //----------------------------------------------------------------
-    //----------------------------------------------------------------
-    //----------------------------------------------------------------
+    cluster_count++;  //keep track of how many clusters meet minimum size requirement.
 
-    cluster_count++;  //keep track of how many clusters meet requirements to update file name.
+    //update file name to include cluster number
     const std::string& filename = basefilename + std::to_string(cluster_count) + ".ply";
 
     // Write PLY
-    //----------------------------------------------------------------
     FILE* fout = NULL;
     fout = fopen(filename.c_str(), "wb");  // write in binary mode
     if (fout == NULL)
@@ -600,25 +644,18 @@ bool Partition::writeTopPLYs(const std::string& basefilename, double area_thresh
       cout << "Unable to create file " << filename << endl;
       return false;
     }
+    int fnum = 0;
 
+    int vnum = flag_new_mesh_ ? new_vertex_num_ : vertex_num_;
 
-    int vnum_debug = flag_new_mesh_ ? new_vertex_num_ : vertex_num_;  //TODO: remove if successful
-    int vnum = cluster_vert_num[c].size();
-    PRINT_BLUE("CLUSTER VERTEX COUNT - NEW: %d; OLD: %d", vnum_debug, vnum);
-
-    //TODO: remove this loop if successful
-    int fnum_debug = 0;
     for(int i = 0; i<faces_.size(); i++){
       if(faces_[i].cluster_id == c && faces_[i].is_valid)
-        fnum_debug++;
+        fnum++;
     }
-    int fnum = cluster_face_num[c].size();
-    PRINT_BLUE("CLUSTER FACE COUNT - NEW: %d; OLD: %d", fnum_debug, fnum);
 
-    // For debugging
     PRINT_YELLOW("CLUSTER: %d; NUM FACES: %d; NUM VERTICES: %d; AREA: %f", c, fnum, vnum, clusters_[c].area);
-
     // Write headers
+
     fprintf(fout, "ply\n");
     fprintf(fout, "format binary_little_endian 1.0\n");
     fprintf(fout, "element vertex %d\n", vnum);
@@ -642,89 +679,46 @@ bool Partition::writeTopPLYs(const std::string& basefilename, double area_thresh
     unsigned char rgb[3] = {255, 255, 255};
 
     //Add vertices
-// TODO: remove if successful
-//    int vcount = 0;
-//    for (int i=0; i<vertex_num_; i++){
-//      if (vertices_[i].is_valid)
-//      {
-//        for (int j = 0; j < 3; ++j)
-//          pt3[j] = float(vertices_[i].pt[j]);
-//          //pt3[j] = float(cn_vertices[i].pt[j]);
-//        fwrite(pt3, sizeof(float), 3, fout);
-//        vcount++;
-//      }
-//    }
-    // only write relevant vertices
     int vcount = 0;
-    for(int i=0; i < vnum; i++){
-      int vidx = cluster_vert_new2old[c][i];
+    for (int i=0; i<vertex_num_; i++){
       if (vertices_[i].is_valid)
       {
         for (int j = 0; j < 3; ++j)
           pt3[j] = float(vertices_[i].pt[j]);
+          //pt3[j] = float(cn_vertices[i].pt[j]);
         fwrite(pt3, sizeof(float), 3, fout);
         vcount++;
       }
     }
-    PRINT_YELLOW("NUM VERTICES: %d", vcount); // for debugging
+
+    PRINT_YELLOW("NUM VERTICES: %d", vcount);
 
     //Add Faces
     int fcount = 0;
-//    for (int i = 0;i < faces_.size(); i++)
-//    {
-//      int cidx = faces_[i].cluster_id;
-
-//      //if (cn_faces[i].is_valid)
-//      if(faces_[i].is_valid && cidx == c)
-//      {
-
-//        fcount++;
-//        fwrite(&kFaceVtxNum, sizeof(unsigned char), 1, fout);
-
-//        //TODO: test! trying to put this bit in updateClusters()
-//        //        if (flag_new_mesh_)
-//        //        {
-//        //          for (int j = 0; j < 3; ++j)
-//        //          {
-//        //            int vidx = vidx_old2new_[faces_[i].indices[j]];
-//        //            fwrite(&vidx, sizeof(int), 1, fout);
-//        //          }
-//        //        }
-//        //        else
-//          fwrite(faces_[i].indices, sizeof(int), 3, fout);
-
-//        if (FLAGS_output_mesh_face_color)
-//        {
-//          //int cidx = cn_faces[i].cluster_id;
-//          if (cidx == -1)
-//          {
-//            PRINT_RED("ERROR: face doesn't belong to any cluster. This shouldn't happen.");
-//            // Will use default color (0,0,0)
-//          }
-//          else
-//          {
-//            for (int j = 0; j < 3; ++j)
-//              rgba[j] = static_cast<unsigned char>(clusters_[cidx].color[j] * 255);
-//          }
-//          fwrite(rgba, sizeof(unsigned char), 4, fout);
-//        }
-//      }
-//    }
-
-    for (int i : cluster_face_num[c])
+    for (int i = 0;i < faces_.size(); i++)
     {
-      if(faces_[i].is_valid)
+      int cidx = faces_[i].cluster_id;
+
+      //if (cn_faces[i].is_valid)
+      if(faces_[i].is_valid && cidx == c)
       {
+
         fcount++;
         fwrite(&kFaceVtxNum, sizeof(unsigned char), 1, fout);
-        for(int j = 0; j < 3; j++){
-          int vidx = cluster_vert_old2new[c][faces_[i].indices[j]];
-          fwrite(&vidx, sizeof(int), 1, fout); //TODO: check validity of & here
+        if (flag_new_mesh_)
+        {
+          for (int j = 0; j < 3; ++j)
+          {
+            int vidx = vidx_old2new_[faces_[i].indices[j]];
+            fwrite(&vidx, sizeof(int), 1, fout);
+          }
         }
+        else
+          fwrite(faces_[i].indices, sizeof(int), 3, fout);
 
         if (FLAGS_output_mesh_face_color)
         {
-          int cidx = faces_[i].cluster_id;
+          //int cidx = cn_faces[i].cluster_id;
           if (cidx == -1)
           {
             PRINT_RED("ERROR: face doesn't belong to any cluster. This shouldn't happen.");
@@ -739,6 +733,7 @@ bool Partition::writeTopPLYs(const std::string& basefilename, double area_thresh
         }
       }
     }
+
     PRINT_YELLOW("NUM FACES: %d", fcount);
 
     fclose(fout);
@@ -2447,20 +2442,12 @@ bool Partition::faceInTopNClusters(int face_num, int n_clusters){
 
 void Partition::updateClusters()
 {
-  // for each face, update it's vertex indices, if applicable. compute face area. add face to cluster map;
+  map<int, vector<int>> cluster_face_num;
   for (int fidx = 0; fidx < face_num_; fidx++)
   {
     Face& face = faces_[fidx];
     if (!face.is_valid)
       continue;
-
-    if (flag_new_mesh_)
-    {
-      for (int j = 0; j < 3; ++j)
-      {
-        faces_[fidx].indices[j] = vidx_old2new_[faces_[fidx].indices[j]];
-      }
-    }
 
     faces_[fidx].area = computeFaceArea(fidx);
 
@@ -2473,32 +2460,16 @@ void Partition::updateClusters()
     cluster_face_num[cidx].push_back(fidx);
     clusters_[cidx].area += faces_[fidx].area;
   }
-
   int count = 0;
-  // for each cluster in the map, check the face counts, add the vertices to the cluster map
   for (auto& it : cluster_face_num)
   {
-    int vidx = 0;
-
     int cidx = it.first;
     int count_faces = it.second.size();
 
-    //for each face in the cluster add the vertices to the cluster set
-    for(int fidx : it.second){
-      for(int i=0; i<3; i++){
-        if(cluster_vert_num[cidx].count(faces_[fidx].indices[i])){
-          cluster_vert_num[cidx].insert(faces_[fidx].indices[i]); //store the index from the original point list
-          cluster_vert_old2new[cidx][faces_[fidx].indices[i]] = vidx; //and the index in the context of the cluster
-          cluster_vert_new2old[cidx][vidx] = faces_[fidx].indices[i];
-          vidx++;
-        }
-      }
-    }
-
     clusters_[cidx].num_faces = count_faces;
-    if(clusters_[cidx].area > 1.0){
+    if (clusters_[cidx].area > 0.5)
       PRINT_CYAN("Cluster %d: #faces %d, #area %f", cidx, count_faces, clusters_[cidx].area);
-    }
+
     int cluster_faces = clusters_[cidx].faces.size();
     if (count_faces < cluster_faces)
     {
