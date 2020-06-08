@@ -54,6 +54,11 @@ bin/
 Bin/
 
 # User specified Qt files
+*.config
+*.creator
+*.files
+*.includes
+
 moc*.cpp
 moc*.h
 ui_*.h

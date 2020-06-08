@@ -52,21 +52,26 @@ public:
         bool is_visited;  // used in Breadth-first search to get connected components in clusters
         bool is_valid;    // false if this face is removed.
         int indices[3];
+        double area;
         CovObj cov;
         unordered_set<int> nbr_faces;
-        Face() : cluster_id(-1), is_visited(false), is_valid(true) {}
+        Face() : cluster_id(-1), area(0), is_visited(false), is_valid(true) {}
     };
 
     struct Cluster
     {
+        int original_id;
+        int num_faces;
+        int num_vertices;
         double energy;             // to save some computation time of calling CovObj::energy() too frequently
+        double area;               // used to calculate, store, and sort by mesh cluster area
         bool is_visited;           // used in Breath-first search to remove small floating clusters
         unordered_set<int> faces;  // faces each cluster contains
         unordered_set<int> nbr_clusters;
         vector<SwapFace> faces_to_swap;
         Vector3f color;
         CovObj cov;
-        Cluster() : energy(0) {}
+        Cluster() : energy(0), area(0.0) {}
     };
 
 public:
@@ -74,7 +79,9 @@ public:
     ~Partition();
     bool readPLY(const std::string& filename);
     bool writePLY(const std::string& filename);
-    bool writePLY(const std::string& filename, int num_clusters);
+    bool writePLY(const std::string& filename, double min_area);
+    bool writeTopPLYs(const std::string& basefilename, double min_area);
+
     bool runPartitionPipeline();
     void writeClusterFile(const std::string& filename);
     bool readClusterFile(const std::string& filename);
@@ -84,6 +91,8 @@ public:
     void runPostProcessing();
     void runSimplification();
     void doubleCheckClusters();
+    void updateClusterInfo();
+    void updateClusters();
 
 private:
     /* Merging */
@@ -132,6 +141,21 @@ private:
     bool checkFlippedFaces(Edge* edge, int endpoint, const Vector3d& contracted_vtx);
     void applyVtxEdgeContraction(Edge* edge, int cluster_idx);
 
+    /* Geometric Functions */
+    double computeFaceArea(int f);
+    static bool compareByArea(const Cluster& a, const Cluster& b){
+      return a.area > b.area;
+    }
+    static bool compareByNumFaces(const Cluster& a, const Cluster& b){
+      return a.num_faces > b.num_faces;
+    }
+    bool faceInTopNClusters(int face_num, int n_clusters);    
+    void computeAllFaceAreas();
+    void orderClustersByArea();
+    void orderClustersByFaceCount();
+    void sortClusters(bool byArea);
+
+
     /* Small functions */
     //! Check if a face contains two vertices
     inline bool checkFaceContainsVertices(int fidx, int v1, int v2)
@@ -151,12 +175,20 @@ private:
     }
 
 private:
+
+    // store the final maps for each cluster to make PLYs from each cluster as needed
+    map<int, vector<int>> cluster_face_num;
+    map<int, unordered_set<int>> cluster_vert_num;
+    map<int, unordered_map<int, int>> cluster_vert_old2new;
+    map<int, unordered_map<int, int>> cluster_vert_new2old;
+
     int vertex_num_, face_num_;
     int init_cluster_num_, curr_cluster_num_, target_cluster_num_;
     bool flag_read_cluster_file_;
     vector<Vertex> vertices_;
     vector<Face> faces_;
     vector<Cluster> clusters_;
+    vector<Cluster> ordered_clusters_;
     vector<vector<Edge*>> global_edges_;
     MxHeap heap_;
     double total_energy_;

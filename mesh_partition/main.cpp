@@ -85,6 +85,16 @@ int main(int argc, char** argv)
         PRINT_GREEN("Write ply file %s", out_ply_fname.c_str());
         partition.writePLY(out_ply_fname);
 
+        PRINT_YELLOW("STARTING INJECTED CODE: ");
+        PRINT_YELLOW("TODO: WRITE PLY FILES FOR TOP N MESH CLUSTERS");
+        partition.doubleCheckClusters();
+        PRINT_GREEN("Final cluster number: %d", partition.getCurrentClusterNum());
+        partition.updateClusters();
+
+//        partition.writePLY("bc_test.ply", 2);
+        partition.writeTopPLYs("toptest", 10);
+        PRINT_YELLOW("END INJECTED CODE:");
+
         PRINT_GREEN("Write cluster file %s", out_cluster_fname.c_str());
         partition.writeClusterFile(out_cluster_fname);
         PRINT_GREEN("ALL DONE.");
