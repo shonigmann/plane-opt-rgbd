@@ -601,10 +601,9 @@ bool Partition::writeTopPLYs(const std::string& basefilename, double area_thresh
       return false;
     }
 
-
     int vnum_debug = flag_new_mesh_ ? new_vertex_num_ : vertex_num_;  //TODO: remove if successful
     int vnum = cluster_vert_num[c].size();
-    PRINT_BLUE("CLUSTER VERTEX COUNT - NEW: %d; OLD: %d", vnum_debug, vnum);
+    PRINT_BLUE("CLUSTER VERTEX COUNT - NEW: %d; OLD: %d", vnum, vnum_debug);
 
     //TODO: remove this loop if successful
     int fnum_debug = 0;
@@ -613,7 +612,7 @@ bool Partition::writeTopPLYs(const std::string& basefilename, double area_thresh
         fnum_debug++;
     }
     int fnum = cluster_face_num[c].size();
-    PRINT_BLUE("CLUSTER FACE COUNT - NEW: %d; OLD: %d", fnum_debug, fnum);
+    PRINT_BLUE("CLUSTER FACE COUNT - NEW: %d; OLD: %d", fnum, fnum_debug);
 
     // For debugging
     PRINT_YELLOW("CLUSTER: %d; NUM FACES: %d; NUM VERTICES: %d; AREA: %f", c, fnum, vnum, clusters_[c].area);
@@ -641,27 +640,16 @@ bool Partition::writeTopPLYs(const std::string& basefilename, double area_thresh
     unsigned char rgba[4] = {255, 255, 255, 255};
     unsigned char rgb[3] = {255, 255, 255};
 
-    //Add vertices
-// TODO: remove if successful
-//    int vcount = 0;
-//    for (int i=0; i<vertex_num_; i++){
-//      if (vertices_[i].is_valid)
-//      {
-//        for (int j = 0; j < 3; ++j)
-//          pt3[j] = float(vertices_[i].pt[j]);
-//          //pt3[j] = float(cn_vertices[i].pt[j]);
-//        fwrite(pt3, sizeof(float), 3, fout);
-//        vcount++;
-//      }
-//    }
     // only write relevant vertices
+//    int vnum = cluster_vert_num[c].size();
+
     int vcount = 0;
     for(int i=0; i < vnum; i++){
       int vidx = cluster_vert_new2old[c][i];
-      if (vertices_[i].is_valid)
+      if (vertices_[vidx].is_valid)
       {
         for (int j = 0; j < 3; ++j)
-          pt3[j] = float(vertices_[i].pt[j]);
+          pt3[j] = float(vertices_[vidx].pt[j]);
         fwrite(pt3, sizeof(float), 3, fout);
         vcount++;
       }
@@ -2312,7 +2300,7 @@ double Partition::computeFaceArea(int f){
   int c = faces_[f].indices[2];
 
   double area = 0.0;
-  
+
   //this check doesn't seem to be necessary as Im already checking validity later...
   if (vertices_[a].is_valid && vertices_[b].is_valid && vertices_[c].is_valid){
 
@@ -2351,7 +2339,7 @@ void Partition::computeAllFaceAreas(){
       max_area = area;
       max_index = i;
     }
-      
+
   }
   PRINT_GREEN("min_area: %f", min_area);
   PRINT_GREEN("max_index: %d; max_area: %f", max_index, max_area);
@@ -2454,14 +2442,6 @@ void Partition::updateClusters()
     if (!face.is_valid)
       continue;
 
-    if (flag_new_mesh_)
-    {
-      for (int j = 0; j < 3; ++j)
-      {
-        faces_[fidx].indices[j] = vidx_old2new_[faces_[fidx].indices[j]];
-      }
-    }
-
     faces_[fidx].area = computeFaceArea(fidx);
 
     int cidx = face.cluster_id;
@@ -2486,7 +2466,7 @@ void Partition::updateClusters()
     //for each face in the cluster add the vertices to the cluster set
     for(int fidx : it.second){
       for(int i=0; i<3; i++){
-        if(cluster_vert_num[cidx].count(faces_[fidx].indices[i])){
+        if(cluster_vert_num[cidx].count(faces_[fidx].indices[i])==0){
           cluster_vert_num[cidx].insert(faces_[fidx].indices[i]); //store the index from the original point list
           cluster_vert_old2new[cidx][faces_[fidx].indices[i]] = vidx; //and the index in the context of the cluster
           cluster_vert_new2old[cidx][vidx] = faces_[fidx].indices[i];

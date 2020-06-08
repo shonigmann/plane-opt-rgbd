@@ -92,7 +92,7 @@ int main(int argc, char** argv)
         partition.updateClusters();
 
 //        partition.writePLY("bc_test.ply", 2);
-        partition.writeTopPLYs("toptest", 10);
+        partition.writeTopPLYs("toptest", 2);
         PRINT_YELLOW("END INJECTED CODE:");
 
         PRINT_GREEN("Write cluster file %s", out_cluster_fname.c_str());
