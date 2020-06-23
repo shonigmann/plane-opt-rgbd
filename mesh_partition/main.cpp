@@ -3,12 +3,17 @@
 #include "../common/tools.h"
 #include <chrono>
 #include <gflags/gflags.h>
+//#include <gflags/gflags_declare.h>
+
+//using namespace google;
+//using namespace GFLAGS_NAMESPACE;
 
 DECLARE_bool(run_post_processing);
 DECLARE_bool(run_mesh_simplification);
 
 int main(int argc, char** argv)
 {
+//    ParseCommandLineFlags(&argc, &argv, true);
     gflags::ParseCommandLineFlags(&argc, &argv, true);
     if (argc != 3 && argc != 5)
     {
@@ -85,31 +90,15 @@ int main(int argc, char** argv)
         PRINT_GREEN("Write ply file %s", out_ply_fname.c_str());
         partition.writePLY(out_ply_fname);
 
-        PRINT_YELLOW("STARTING INJECTED CODE: ");
-        PRINT_YELLOW("TODO: WRITE PLY FILES FOR TOP N MESH CLUSTERS");
         partition.doubleCheckClusters();
         PRINT_GREEN("Final cluster number: %d", partition.getCurrentClusterNum());
         partition.updateClusters();
-
-//        partition.writePLY("bc_test.ply", 2);
-        partition.writeTopPLYs("toptest", 2);
-        PRINT_YELLOW("END INJECTED CODE:");
+        partition.writeTopPLYs("toptest", 0.5);
 
         PRINT_GREEN("Write cluster file %s", out_cluster_fname.c_str());
         partition.writeClusterFile(out_cluster_fname);
         PRINT_GREEN("ALL DONE.");
     }
-/*
-    Partition partition_reduced;
-    PRINT_GREEN("Read ply file: %s", out_cluster_fname.c_str());
-    if (!partition_reduced.readPLY(out_cluster_fname))
-    {
-        PRINT_RED("ERROR in reading ply file %s", out_cluster_fname.c_str());
-        return -1;
-    }
-    partition_reduced.printModelInfo();
 
-    // TODO: add ordering step prior to writing final PLYpartition_reduced.
-*/
     return 0;
 }

@@ -80,7 +80,7 @@ public:
     bool readPLY(const std::string& filename);
     bool writePLY(const std::string& filename);
     bool writePLY(const std::string& filename, double min_area);
-    bool writeTopPLYs(const std::string& basefilename, double min_area);
+    bool writeTopPLYs(const std::string& basefilename, double min_area, Vector3d gravity_direction=Vector3d(0,1,0));
 
     bool runPartitionPipeline();
     void writeClusterFile(const std::string& filename);
@@ -153,10 +153,18 @@ private:
     void computeAllFaceAreas();
     void orderClustersByArea();
     void orderClustersByFaceCount();
-    void sortClusters(bool byArea);
-
+    void sortClusters(bool byArea); //TODO: remove unused functions
+    Vector3d computeMeshCentroid(double min_cluster_area);
+    Vector3d computeClusterCentroid(int c){
+      return clusters_[c].cov.center_;
+    }
+    void changeClusterNormalDirection(int cidx, Vector3f grav_dir);
 
     /* Small functions */
+    template <typename T> int sgn(T val) {
+        return (T(0) < val) - (val < T(0));
+    }
+
     //! Check if a face contains two vertices
     inline bool checkFaceContainsVertices(int fidx, int v1, int v2)
     {
@@ -181,6 +189,8 @@ private:
     map<int, unordered_set<int>> cluster_vert_num;
     map<int, unordered_map<int, int>> cluster_vert_old2new;
     map<int, unordered_map<int, int>> cluster_vert_new2old;
+    Vector3d mesh_centroid_;
+
 
     int vertex_num_, face_num_;
     int init_cluster_num_, curr_cluster_num_, target_cluster_num_;

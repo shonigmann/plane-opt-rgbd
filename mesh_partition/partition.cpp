@@ -12,9 +12,8 @@
 #include <gflags/gflags.h>
 #include <fstream>
 #include <algorithm>
-
-#include "opencv2/core.hpp"
-#include "opencv2/imgproc.hpp"
+#include "pca.h"
+#include <math.h>
 
 const double kPI = 3.1415926;
 
@@ -544,7 +543,7 @@ bool Partition::writePLY(const std::string& filename, double min_area)
         }
         else
         {
-          if(clusters_[cidx].area < 1)
+          if(clusters_[cidx].cov.area_ < 1)
           { //trying with area limit instead of number of regions
             for (int j = 0; j < 3; ++j)
               rgba[j] = static_cast<unsigned char>(clusters_[cidx].color[j] * 0);
@@ -565,172 +564,361 @@ bool Partition::writePLY(const std::string& filename, double min_area)
 }
 
 //! Write a PLY file for each cluster that meets specified criteria
-bool Partition::writeTopPLYs(const std::string& basefilename, double area_threshold)
+bool Partition::writeTopPLYs(const std::string& basefilename, double area_threshold, Vector3d gravity_direction)//=Vector3d(0,1,0))
 {
+//  ofstream plane_text;
+//  plane_text.open("planar_reconstruction_test.txt");  // write in binary mode
+
   int cluster_count = 0;
   // Loop through each cluster and create a PLY file for it
   for(int c = 0; c < clusters_.size(); c++)
   {
+    // TODO: figure out best way to bring obstacles into placement optimziation
+    int vnum = cluster_vert_num[c].size();
+    int fnum = cluster_face_num[c].size();
 
     // preliminary filter
-    if(clusters_[c].area < area_threshold) //only write file for regions that meet area criteria
+    if(clusters_[c].cov.area_ < area_threshold || vnum <= 0) //only write file for regions that meet area criteria
       continue;
-
     //----------------------------------------------------------------
-    //----------------------------------------------------------------
-    //----------------------------------------------------------------
+    // Run PCA on cluster components
+    Eigen::MatrixXd pca_data_matrix(vnum,3);
 
-    // TODO: run PCA
-
-    // TODO: secondary filtering based on PCA results
-
-    //----------------------------------------------------------------
-    //----------------------------------------------------------------
-    //----------------------------------------------------------------
-
-    cluster_count++;  //keep track of how many clusters meet requirements to update file name.
-    const std::string& filename = basefilename + std::to_string(cluster_count) + ".ply";
-
-    // Write PLY
-    //----------------------------------------------------------------
-    FILE* fout = NULL;
-    fout = fopen(filename.c_str(), "wb");  // write in binary mode
-    if (fout == NULL)
-    {
-      cout << "Unable to create file " << filename << endl;
-      return false;
-    }
-
-    int vnum_debug = flag_new_mesh_ ? new_vertex_num_ : vertex_num_;  //TODO: remove if successful
-    int vnum = cluster_vert_num[c].size();
-    PRINT_BLUE("CLUSTER VERTEX COUNT - NEW: %d; OLD: %d", vnum, vnum_debug);
-
-    //TODO: remove this loop if successful
-    int fnum_debug = 0;
-    for(int i = 0; i<faces_.size(); i++){
-      if(faces_[i].cluster_id == c && faces_[i].is_valid)
-        fnum_debug++;
-    }
-    int fnum = cluster_face_num[c].size();
-    PRINT_BLUE("CLUSTER FACE COUNT - NEW: %d; OLD: %d", fnum, fnum_debug);
-
-    // For debugging
-    PRINT_YELLOW("CLUSTER: %d; NUM FACES: %d; NUM VERTICES: %d; AREA: %f", c, fnum, vnum, clusters_[c].area);
-
-    // Write headers
-    fprintf(fout, "ply\n");
-    fprintf(fout, "format binary_little_endian 1.0\n");
-    fprintf(fout, "element vertex %d\n", vnum);
-    fprintf(fout, "property float x\n");
-    fprintf(fout, "property float y\n");
-    fprintf(fout, "property float z\n");
-    fprintf(fout, "element face %d\n", fnum);
-    fprintf(fout, "property list uchar int vertex_indices\n");
-    if (FLAGS_output_mesh_face_color)
-    {
-      fprintf(fout, "property uchar red\n");  // face color
-      fprintf(fout, "property uchar green\n");
-      fprintf(fout, "property uchar blue\n");
-      fprintf(fout, "property uchar alpha\n");
-    }
-    fprintf(fout, "end_header\n");
-
-    float pt3[3];
-    unsigned char kFaceVtxNum = 3;
-    unsigned char rgba[4] = {255, 255, 255, 255};
-    unsigned char rgb[3] = {255, 255, 255};
-
-    // only write relevant vertices
-//    int vnum = cluster_vert_num[c].size();
-
-    int vcount = 0;
     for(int i=0; i < vnum; i++){
       int vidx = cluster_vert_new2old[c][i];
-      if (vertices_[vidx].is_valid)
-      {
-        for (int j = 0; j < 3; ++j)
-          pt3[j] = float(vertices_[vidx].pt[j]);
-        fwrite(pt3, sizeof(float), 3, fout);
-        vcount++;
+      for(int j=0; j<3; j++){
+        pca_data_matrix(i,j) = vertices_[vidx].pt[j];
       }
     }
-    PRINT_YELLOW("NUM VERTICES: %d", vcount); // for debugging
 
-    //Add Faces
-    int fcount = 0;
-//    for (int i = 0;i < faces_.size(); i++)
-//    {
-//      int cidx = faces_[i].cluster_id;
+    try
+    {
+      pca_t<double> pca;
+      pca.set_input(pca_data_matrix);
+      pca.compute();
 
-//      //if (cn_faces[i].is_valid)
-//      if(faces_[i].is_valid && cidx == c)
-//      {
+      //reduced reconstruction....
+      const auto& T_L = pca.get_centered_matrix() * pca.get_eigen_vectors().leftCols(2);
+      const auto& X_L = T_L * pca.get_eigen_vectors().leftCols(2).transpose();
+      const auto& X_hat = X_L + pca.get_mean(); // X_Hat is a purely planar reconstruction of the region
+      auto error = (pca_data_matrix - X_hat).norm();
 
-//        fcount++;
-//        fwrite(&kFaceVtxNum, sizeof(unsigned char), 1, fout);
+//      plane_text << "Cluster" << c << "\n";
+//      plane_text << "Eigen Vectors\n" << pca.get_eigen_vectors() << "\n";
+//      plane_text << "Eigen Values\n" << pca.get_eigen_values() << "\n";
+//      plane_text << "Mean Values\n" << pca.get_mean() << "\n";
+//      plane_text << "Plane Reconstruction\n" << X_hat << "\n";
+//      plane_text << "Projection Space\n" << T_L << "\n";
 
-//        //TODO: test! trying to put this bit in updateClusters()
-//        //        if (flag_new_mesh_)
-//        //        {
-//        //          for (int j = 0; j < 3; ++j)
-//        //          {
-//        //            int vidx = vidx_old2new_[faces_[i].indices[j]];
-//        //            fwrite(&vidx, sizeof(int), 1, fout);
-//        //          }
-//        //        }
-//        //        else
-//          fwrite(faces_[i].indices, sizeof(int), 3, fout);
+      // TODO: consider reconstruction error - indicates how planar the surface actually is...
+      // T_L represents the data, projected into a reduced, non-correlated space. can find max and min points here to estimate the rectangle dims
 
-//        if (FLAGS_output_mesh_face_color)
-//        {
-//          //int cidx = cn_faces[i].cluster_id;
-//          if (cidx == -1)
-//          {
-//            PRINT_RED("ERROR: face doesn't belong to any cluster. This shouldn't happen.");
-//            // Will use default color (0,0,0)
-//          }
-//          else
-//          {
-//            for (int j = 0; j < 3; ++j)
-//              rgba[j] = static_cast<unsigned char>(clusters_[cidx].color[j] * 255);
-//          }
-//          fwrite(rgba, sizeof(unsigned char), 4, fout);
+      auto max_T_1 = T_L.leftCols(1).maxCoeff();
+      auto min_T_1 = T_L.leftCols(1).minCoeff();
+      auto max_T_2 = T_L.rightCols(1).maxCoeff();
+      auto min_T_2 = T_L.rightCols(1).minCoeff();
+
+      auto range_T_1 = max_T_1-min_T_1;
+      auto range_T_2 = max_T_2-min_T_2;
+
+      std::cout
+  //      << "T_L Matrix:	\n" << T_L << std::endl << std::endl
+  //      << std::fixed
+        << "Eigen Vectors: \n" << pca.get_eigen_vectors() << "\n" << "Eigen Values: \n" << pca.get_eigen_values() << std::endl
+        << "T1_max: " << max_T_1 << "; T1_min: " << min_T_1 << "; T2_max: " << max_T_2 << "; T2_min: " << min_T_2 << std::endl
+        << "Error:				\n" << error << std::endl << std::endl;
+
+      //angle between plane normal and gravity vector... dividing by norms shouldn't be required, but protects against user error entering gravity direction..
+      double  angle2grav = acos(gravity_direction.dot(pca.get_eigen_vectors().col(2))/(gravity_direction.norm()*pca.get_eigen_vectors().col(2).norm()));
+
+      //basic check for now...
+      // if angle < 45 deg, ceiling (gravity and normal are nearly in alignment
+      // if 45 < angle < 135, wall (gravity and normal are nearly perpendicular
+      // if angle > 135, floor (gravity and normal are nearly opposed
+      int state; // 0 for ceiling, 1 for wall, 2 for floor
+      Vector2d perch_window; //minimum radii in the principal plane axes. for ceiling and floor, these should be equal. For the walls, the first term cooresponds with the axis most closely in line with gravity
+
+      //TODO: take these conditions and windows as an input or have a separate file...
+      if(angle2grav > 45 && angle2grav < 135){
+        state = 0; //ceiling
+        perch_window(0) = 0.3;
+        perch_window(1) = 0.3;
+      }else if(angle2grav > 45 && angle2grav < 135){
+        state = 1; //wall
+        //for the wall, check which of the two principle axes are closer to gravity... switch window as needed
+        if(fabs(gravity_direction.dot(pca.get_eigen_vectors().col(0))) >= fabs(gravity_direction.dot(pca.get_eigen_vectors().col(1)))){
+          perch_window(0) = 0.5;
+          perch_window(1) = 0.3;
+        }else{
+          perch_window(0) = 0.3;
+          perch_window(1) = 0.5;
+        }
+      }else{//(angle2grav > 135){
+        state = 2; //floor
+        perch_window(0) = 0.3;
+        perch_window(1) = 0.3;
+      }
+
+      // for debug
+      PRINT_YELLOW("Range vs Window; E1 (%f, %f); E2 (%f, %f)", range_T_1, perch_window(0), range_T_2, perch_window(1));
+      // quick filtering based on max range in plane axes
+      if(!(range_T_1 > perch_window(0)) && !(range_T_2 > perch_window(1)))
+        continue;
+
+  // TODO: consider polygon erosion (or rasterized erosion if no good algorithm exists) once edge vertices are determined
+      // TODO: secondary filtering based on PCA results
+      // more detailed filtering based on minimum radius to edge vertex (this will include holes and will require windows to be large enough given internal holes. TODO: further trim surface if there are holes present)
+      unordered_map<int, unordered_map<int, bool>> vertex_on_outer_edge; //maps between vertex indices composing edges (both v1 v2 and v2 v1 order).
+      vector<Edge> outer_edges;
+
+      // find all outer edges in the cluster
+      for (int i : cluster_face_num[c])
+      {
+        if(faces_[i].is_valid)
+        {
+          for(int j = 0; j<3; j++){
+            int k = (j+1)%3;
+            int v1 = faces_[i].indices[j];
+            int v2 = faces_[i].indices[k];
+            if (vertex_on_outer_edge[v1].count(v2) > 0 || vertex_on_outer_edge[v2].count(v1) > 0){
+              vertex_on_outer_edge[v1][v2] = false; // if the edge exists on more than 1 face, it is not considered to be an outer edge
+              vertex_on_outer_edge[v2][v1] = false;
+              //TODO: try to remove from outer_edges vector
+              for(int e = 0; e < outer_edges.size(); e++){
+                if((outer_edges[e].v1 == v1) && (outer_edges[e].v2 == v2) || (outer_edges[e].v1 == v2) && (outer_edges[e].v2 == v1)){
+                  outer_edges.erase(outer_edges.begin()+e);
+                  break;
+                }
+              }
+            }else{
+              vertex_on_outer_edge[v1][v2] = true;
+              vertex_on_outer_edge[v2][v1] = true;
+              outer_edges.push_back(Edge(v1, v2));
+            }
+          }
+        }
+      }
+
+      vector<vector<int>> loops;
+      int target = outer_edges.size();
+      int k = 0; //total number of points added to loops
+      int points_left = outer_edges.size();
+
+      while(k < target && points_left > 0){
+        //PRINT_MAGENTA("POINTS LEFT: %d", points_left);
+
+        int j = 0;
+        vector<int> loop;
+
+        //add first edge left in list
+        int prev_point = outer_edges[0].v1;
+        int next_point = outer_edges[0].v2;
+        loop.push_back(prev_point);
+        loop.push_back(next_point);
+//        PRINT_CYAN("ADDED %d, %d", prev_point, next_point);
+
+        k += 2;
+        outer_edges.erase(outer_edges.begin()); //remove point...
+        points_left = outer_edges.size(); //re-evaluate list size
+
+        while(!(next_point == loop[0]) && j < points_left && points_left > 0){
+          //PRINT_MAGENTA("POINTS LEFT: %d, j: %d, next_point: , ", points_left, j);
+
+          int v1 = outer_edges[j].v1;
+          int v2 = outer_edges[j].v2;
+          if(v1==next_point || v2==next_point)
+          {
+            prev_point = next_point;
+
+            if(v1==next_point){
+              loop.push_back(v2);
+//              PRINT_CYAN("ADDED (%d), %d", v1, v2);
+
+            }else if(v2==next_point){
+              loop.push_back(v1);
+//              PRINT_CYAN("ADDED (%d), %d", v2, v1);
+            }
+            k++;
+            outer_edges.erase(outer_edges.begin() + j); //remove point...
+            points_left = outer_edges.size(); //re-evaluate list size
+            next_point = loop.back();
+            j=0; //reset search index
+          }
+          else{
+            j++;
+          }
+        }
+        if(next_point == loop[0]){
+          //loop successfully closed!
+          PRINT_GREEN("LOOP CLOSED");
+          //note each loop doubles up on the first point (for closure) so the target should be increased by one for every loop
+          target ++;
+          loops.push_back(loop);
+
+        }
+        else if(j>= points_left){
+          // TODO: there are cases where a point shares 4 outer edges (e.g. hourglass) on more complicated meshes... ignoring for now
+          //no closure found
+          PRINT_RED("j > points_left; LOOP LEFT UNCLOSED");
+          break;
+        }
+        else if (points_left == 0){
+          //all points are exhausted. no closure on latest loop
+          if(loops.size() > 0){
+            // do nothing... this loop isn't complete. but keep the others
+            continue;
+          }else{
+            PRINT_RED("No points left; LOOP LEFT UNCLOSED");
+            break;
+          }
+        }
+      }
+
+//      //now i need to figure out which is the outer loop
+//      if (loops.size()>0){
+//        int l = 0;
+//        for(vector<int> loop : loops){
+//          // quick and dirty file write for now..
+//          plane_text << "Loop " << l << ":" << endl;
+//          l++;
+//          for(int v : loop)
+//            plane_text << cluster_vert_old2new[c][v] << ", ";
+//          plane_text << endl;
 //        }
 //      }
-//    }
 
-    for (int i : cluster_face_num[c])
-    {
-      if(faces_[i].is_valid)
+      //----------------------------------------------------------------
+      //----------------------------------------------------------------
+      //----------------------------------------------------------------
+
+      const std::string& filename = basefilename + std::to_string(cluster_count) + ".ply";
+//      const std::string& filename_hat = basefilename + std::to_string(cluster_count) + "_hat.ply"; //TODO remove
+      cluster_count++;  //keep track of how many clusters meet requirements to update file name.
+
+      // Write PLY
+      //----------------------------------------------------------------
+      FILE* fout = NULL;
+//      FILE* fout_hat = NULL;
+      fout = fopen(filename.c_str(), "wb");  // write in binary mode
+//      fout_hat = fopen(filename_hat.c_str(), "wb");  // write in binary mode // TODO: remove
+      if (fout == NULL) // || fout_hat == NULL)
       {
-        fcount++;
-        fwrite(&kFaceVtxNum, sizeof(unsigned char), 1, fout);
-        for(int j = 0; j < 3; j++){
-          int vidx = cluster_vert_old2new[c][faces_[i].indices[j]];
-          fwrite(&vidx, sizeof(int), 1, fout); //TODO: check validity of & here
-        }
+        cout << "Unable to create file " << filename << endl;
+        return false;
+      }
 
-        if (FLAGS_output_mesh_face_color)
+      // For debugging
+      PRINT_YELLOW("CLUSTER: %d; NUM FACES: %d; NUM VERTICES: %d; AREA: %f", c, fnum, vnum, clusters_[c].cov.area_);
+
+      // Write headers
+      fprintf(fout, "ply\n");
+      fprintf(fout, "format binary_little_endian 1.0\n");
+      fprintf(fout, "element vertex %d\n", vnum);
+      fprintf(fout, "property float x\n");
+      fprintf(fout, "property float y\n");
+      fprintf(fout, "property float z\n");
+      fprintf(fout, "element face %d\n", fnum);
+      fprintf(fout, "property list uchar int vertex_indices\n");
+      if (FLAGS_output_mesh_face_color)
+      {
+        fprintf(fout, "property uchar red\n");  // face color
+        fprintf(fout, "property uchar green\n");
+        fprintf(fout, "property uchar blue\n");
+        fprintf(fout, "property uchar alpha\n");
+      }
+      fprintf(fout, "end_header\n");
+
+      //----------------------------------------------------------------
+      // Write headers TODO: remove
+//      fprintf(fout_hat, "ply\n");
+//      fprintf(fout_hat, "format binary_little_endian 1.0\n");
+//      fprintf(fout_hat, "element vertex %d\n", vnum);
+//      fprintf(fout_hat, "property float x\n");
+//      fprintf(fout_hat, "property float y\n");
+//      fprintf(fout_hat, "property float z\n");
+//      fprintf(fout_hat, "element face %d\n", fnum);
+//      fprintf(fout_hat, "property list uchar int vertex_indices\n");
+//      if (FLAGS_output_mesh_face_color)
+//      {
+//        fprintf(fout_hat, "property uchar red\n");  // face color
+//        fprintf(fout_hat, "property uchar green\n");
+//        fprintf(fout_hat, "property uchar blue\n");
+//        fprintf(fout_hat, "property uchar alpha\n");
+//      }
+//      fprintf(fout_hat, "end_header\n");
+      //----------------------------------------------------------------
+
+      float pt3[3];
+      unsigned char kFaceVtxNum = 3;
+      unsigned char rgba[4] = {255, 255, 255, 255};
+      unsigned char rgb[3] = {255, 255, 255};
+
+      // only write relevant vertices
+      int vcount = 0;
+      for(int i=0; i < vnum; i++){
+        int vidx = cluster_vert_new2old[c][i];
+        if (vertices_[vidx].is_valid)
         {
-          int cidx = faces_[i].cluster_id;
-          if (cidx == -1)
-          {
-            PRINT_RED("ERROR: face doesn't belong to any cluster. This shouldn't happen.");
-            // Will use default color (0,0,0)
-          }
-          else
-          {
-            for (int j = 0; j < 3; ++j)
-              rgba[j] = static_cast<unsigned char>(clusters_[cidx].color[j] * 255);
-          }
-          fwrite(rgba, sizeof(unsigned char), 4, fout);
+          for (int j = 0; j < 3; ++j)
+            pt3[j] = float(vertices_[vidx].pt[j]);
+          fwrite(pt3, sizeof(float), 3, fout);
+
+//          //TODO: add reconstructed point
+//          for (int j = 0; j < 3; ++j)
+//            pt3[j] = float(X_hat(i,j));
+//          fwrite(pt3, sizeof(float), 3, fout_hat); //todo remove
+
+          vcount++;
         }
       }
-    }
-    PRINT_YELLOW("NUM FACES: %d", fcount);
+      PRINT_YELLOW("NUM VERTICES: %d", vcount); // for debugging
 
-    fclose(fout);
+      //Add Faces
+      int fcount = 0;
+
+      for (int i : cluster_face_num[c])
+      {
+        if(faces_[i].is_valid)
+        {
+          fcount++;
+          fwrite(&kFaceVtxNum, sizeof(unsigned char), 1, fout);
+//          fwrite(&kFaceVtxNum, sizeof(unsigned char), 1, fout_hat);
+          for(int j = 0; j < 3; j++){
+            int vidx = cluster_vert_old2new[c][faces_[i].indices[j]];
+            fwrite(&vidx, sizeof(int), 1, fout); //TODO: check validity of & here
+//            fwrite(&vidx, sizeof(int), 1, fout_hat); //TODO: remove
+          }
+
+          if (FLAGS_output_mesh_face_color)
+          {
+            int cidx = faces_[i].cluster_id;
+            if (cidx == -1)
+            {
+              PRINT_RED("ERROR: face doesn't belong to any cluster. This shouldn't happen.");
+              // Will use default color (0,0,0)
+            }
+            else
+            {
+              for (int j = 0; j < 3; ++j)
+                rgba[j] = static_cast<unsigned char>(clusters_[cidx].color[j] * 255);
+            }
+            fwrite(rgba, sizeof(unsigned char), 4, fout);
+//            fwrite(rgba, sizeof(unsigned char), 4, fout_hat); //todo: remove
+          }
+        }
+      }
+      PRINT_YELLOW("NUM FACES: %d", fcount);
+
+      fclose(fout);
+//      fclose(fout_hat);
+
+    }catch(const std::exception& e)
+    {
+      PRINT_RED("PCA ERROR:");
+      std::cout << e.what();
+    }
   }
+//  plane_text.close();
 
   return true;
 }
@@ -761,7 +949,7 @@ void Partition::writeClusterFile(const std::string& filename)
     writeout << new_cidx << " " << num << ": ";
     for (int fidx : indices)
       writeout << fidx << " ";
-    writeout << " Area: " << clusters_[cidx].area;
+    writeout << " Area: " << clusters_[cidx].cov.area_;
     writeout << endl;
 
     for (int i = 0; i < 3; ++i)
@@ -2435,6 +2623,7 @@ bool Partition::faceInTopNClusters(int face_num, int n_clusters){
 
 void Partition::updateClusters()
 {
+
   // for each face, update it's vertex indices, if applicable. compute face area. add face to cluster map;
   for (int fidx = 0; fidx < face_num_; fidx++)
   {
@@ -2442,7 +2631,7 @@ void Partition::updateClusters()
     if (!face.is_valid)
       continue;
 
-    faces_[fidx].area = computeFaceArea(fidx);
+    // faces_[fidx].area = computeFaceArea(fidx); //TODO: area is already included in face.cov.area. use this to reduce redundant calcs
 
     int cidx = face.cluster_id;
     if (cidx == -1 || cidx >= init_cluster_num_)
@@ -2451,8 +2640,11 @@ void Partition::updateClusters()
       continue;
     }
     cluster_face_num[cidx].push_back(fidx);
-    clusters_[cidx].area += faces_[fidx].area;
+    // clusters_[cidx].area += faces_[fidx].area;
   }
+
+  //update mesh centroid
+  computeMeshCentroid(0.0); // input of 0.0 means all (valid) faces are weighted
 
   int count = 0;
   // for each cluster in the map, check the face counts, add the vertices to the cluster map
@@ -2475,9 +2667,16 @@ void Partition::updateClusters()
       }
     }
 
+    //update plane normals
+    clusters_[cidx].cov.computePlaneNormal();
+
+    //adjust normal directions based on a few simple rules
+    Vector3f grav_dir; //not used for now...
+    changeClusterNormalDirection(cidx, grav_dir);
+
     clusters_[cidx].num_faces = count_faces;
-    if(clusters_[cidx].area > 1.0){
-      PRINT_CYAN("Cluster %d: #faces %d, #area %f", cidx, count_faces, clusters_[cidx].area);
+    if(clusters_[cidx].cov.area_ > 1.0){
+      PRINT_CYAN("Cluster %d: #faces %d, #cov_area %f, #face_normal [%f, %f, %f]", cidx, count_faces, clusters_[cidx].cov.area_, clusters_[cidx].cov.normal_[0], clusters_[cidx].cov.normal_[1], clusters_[cidx].cov.normal_[2]);
     }
     int cluster_faces = clusters_[cidx].faces.size();
     if (count_faces < cluster_faces)
@@ -2494,4 +2693,37 @@ void Partition::updateClusters()
   {
     PRINT_RED("#Count faces: %d, #faces: %d", count, face_num_);
   }
+}
+
+void Partition::changeClusterNormalDirection(int cidx, Vector3f grav_dir){
+  // TODO: consider adding threshold or other consideration for the vertical offset from the floor/ceiling. It may
+  // make more sense to classify a surface as upward or downward facing depending on its position in the room.
+  // e.g. a desk and a shelf could be both be landing surfaces, but if the shelf is too high, the direction towards the centroid
+  // may have a negative vertical component
+  Vector3d vec2centroid = mesh_centroid_ - clusters_[cidx].cov.center_;
+
+  double dot_result = vec2centroid.dot(clusters_[cidx].cov.normal_);
+
+  if(dot_result < 0.0){
+    clusters_[cidx].cov.normal_ *= -1.0;
+  }
+}
+
+Vector3d Partition::computeMeshCentroid(double min_cluster_area){
+  Vector3d weighted_areas(0,0,0);
+  Vector3d centroid(0,0,0);
+  double area=0;
+
+  for(Face f : faces_){
+    if(f.is_valid){
+      if(clusters_[f.cluster_id].cov.area_ >= min_cluster_area){
+        area+= f.cov.area_;
+        weighted_areas+= f.cov.center_*f.cov.area_;
+      }
+    }
+  }
+
+  centroid = weighted_areas/area;
+  mesh_centroid_ = centroid;
+  return centroid;
 }
