@@ -5,7 +5,8 @@
 
 #include "partition.h"
 #include <stdlib.h>
-#include "../common/tools.h"
+//#include "../common/tools.h"
+#include "tools.h"
 #include <random>
 #include <chrono>
 #include <queue>
