@@ -1,0 +1,3 @@
+consider adding dynamic reconfigurability for parameters like cluster count, etc. could also be a static file... doesn't really need to run in real time yet... though if making a UI, would be helpful
+
+geometric controller is a good example to reference here
