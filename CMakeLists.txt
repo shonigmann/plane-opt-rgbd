@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.0.2)
 project(mesh_partition)
 
 ## Compile as C++11, supported in ROS Kinetic and newer
-add_compile_options(-std=c++11)
+#add_compile_options(-std=c++11)
 
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
@@ -16,58 +16,21 @@ find_package(catkin REQUIRED COMPONENTS
   message_generation
 )
 
-
 find_package(gflags REQUIRED)  # previously had Eigen3 here... 
-find_package(Eigen3 REQUIRED)  # not sure if required
+#find_package(Eigen3 REQUIRED)  # not sure if required
 
 ## System dependencies are found with CMake's conventions
 # find_package(Boost REQUIRED COMPONENTS system)
 
-
 ################################################
 ## Declare ROS messages, services and actions ##
 ################################################
-
-## To declare and build messages, services or actions from within this
-## package, follow these steps:
-## * Let MSG_DEP_SET be the set of packages whose message types you use in
-##   your messages/services/actions (e.g. std_msgs, actionlib_msgs, ...).
-## * In the file package.xml:
-##   * add a build_depend tag for "message_generation"
-##   * add a build_depend and a exec_depend tag for each package in MSG_DEP_SET
-##   * If MSG_DEP_SET isn't empty the following dependency has been pulled in
-##     but can be declared for certainty nonetheless:
-##     * add a exec_depend tag for "message_runtime"
-## * In this file (CMakeLists.txt):
-##   * add "message_generation" and every package in MSG_DEP_SET to
-##     find_package(catkin REQUIRED COMPONENTS ...)
-##   * add "message_runtime" and every package in MSG_DEP_SET to
-##     catkin_package(CATKIN_DEPENDS ...)
-##   * uncomment the add_*_files sections below as needed
-##     and list every .msg/.srv/.action file to be processed
-##   * uncomment the generate_messages entry below
-##   * add every package in MSG_DEP_SET to generate_messages(DEPENDENCIES ...)
-
 ## Generate messages in the 'msg' folder
 add_message_files(
   FILES
   MeshEnvironment.msg
   PerchTarget.msg
 )
-
-## Generate services in the 'srv' folder
-# add_service_files(
-#   FILES
-#   Service1.srv
-#   Service2.srv
-# )
-
-## Generate actions in the 'action' folder
-# add_action_files(
-#   FILES
-#   Action1.action
-#   Action2.action
-# )
 
 ## Generate added messages and services with any dependencies listed here
 generate_messages(
@@ -109,7 +72,7 @@ catkin_package(
   INCLUDE_DIRS include #include/common include/mesh_partition
   LIBRARIES mesh_partition
   CATKIN_DEPENDS message_runtime rospy roscpp # not sure about the last two...
-  DEPENDS gflags #perch_placement #eigen3 
+  DEPENDS gflags #eigen3 
 )
 
 ###########
@@ -119,14 +82,14 @@ catkin_package(
 ## Specify additional locations of header files
 ## Your package locations should be listed before other locations
 
-SET(eigen3_INCLUDE_DIR "/usr/include/eigen3")
-include_directories(${eigen3_INCLUDE_DIR} "heap")
-
-
 include_directories(
  include
  ${catkin_INCLUDE_DIRS}
 )
+
+SET(eigen3_INCLUDE_DIR "/usr/include/eigen3")
+include_directories(${eigen3_INCLUDE_DIR} "heap")
+
 
 ## Declare a C++ library
 add_library(${PROJECT_NAME}
@@ -144,10 +107,12 @@ add_library(${PROJECT_NAME}
 ## Declare a C++ executable
 ## With catkin_make all packages are built within a single CMake context
 ## The recommended prefix ensures that target names across packages don't collide
-add_executable(${PROJECT_NAME}_node src/mesh_partition_node.cpp src/common/covariance.cpp src/mesh_partition/heap/MxHeap.cxx)
+
+add_executable(${PROJECT_NAME}_node src/mesh_partition_node.cpp)# src/common/covariance.cpp src/mesh_partition/heap/MxHeap.cxx)
 
 ## Specify libraries to link a library or executable target against 
 target_link_libraries(${PROJECT_NAME}_node ${PROJECT_NAME} ${catkin_LIBRARIES} gflags)
+#target_link_libraries(${PROJECT_NAME}_node gflags)
 
 ## Add cmake target dependencies of the executable
 ## same as for the library above

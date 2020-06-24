@@ -12,11 +12,14 @@
 
 #include "mesh_partition/MeshEnvironment.h"
 
-#include <gflags/gflags.h>
+//#include <gflags/gflags.h>
 //using namespace google;
 
-DECLARE_bool(run_post_processing);
-DECLARE_bool(run_mesh_simplification);
+//DECLARE_bool(run_post_processing);
+//DECLARE_bool(run_mesh_simplification);
+const bool run_post_processing = true;
+const bool run_mesh_simplification = true;
+const bool output_mesh_face_color = true;
 
 class MeshPartitionNode
 {
@@ -49,7 +52,7 @@ int main(int argc, char** argv)
   MeshPartitionNode MPNode;
 
   //ParseCommandLineFlags(&argc, &argv, true);
-  gflags::ParseCommandLineFlags(&argc, &argv, true);
+  //gflags::ParseCommandLineFlags(&argc, &argv, true);
 
     if (argc != 3 && argc != 5)
     {
@@ -97,7 +100,7 @@ int main(int argc, char** argv)
     bool flag_success = true;
     if (flag_read_cluster_file)
     {
-        if (FLAGS_run_post_processing)
+        if (output_mesh_face_color)
         {
             PRINT_GREEN("Run post processing ...");
             partition.runPostProcessing();
@@ -111,7 +114,7 @@ int main(int argc, char** argv)
         flag_success = partition.runPartitionPipeline();
         partition.doubleCheckClusters();
     }
-    if (FLAGS_run_mesh_simplification)
+    if (run_mesh_simplification)
     {
         PRINT_GREEN("Run mesh simplification...");
         partition.runSimplification();

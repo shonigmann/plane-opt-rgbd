@@ -10,7 +10,7 @@
 #include <random>
 #include <chrono>
 #include <queue>
-#include <gflags/gflags.h>
+//#include <gflags/gflags.h>
 #include <fstream>
 #include <algorithm>
 #include "pca.h"
@@ -18,18 +18,30 @@
 
 const double kPI = 3.1415926;
 
-DEFINE_double(point_plane_dis_threshold, 0.2, "");
-DEFINE_double(normal_angle_threshold, 15.0, "");
-DEFINE_double(center_normal_angle_threshold, 70.0, "");
-DEFINE_double(energy_increase_threshold, 0.1, "");
-DEFINE_double(island_cluster_border_ratio, 0.8, "");
-DEFINE_double(simplification_border_edge_ratio, 0.05, "");
-DEFINE_int32(swapping_loop_num, 300, "0 or a negative value means no swapping at all");
-DEFINE_int32(smallest_connected_component_size, 20, "#faces in smallest connected components");
-DEFINE_int32(smallest_inner_edge_number, 10, "");
-DEFINE_bool(run_post_processing, true, "");
-DEFINE_bool(run_mesh_simplification, true, "");
-DEFINE_bool(output_mesh_face_color, true, "false for no face color in the output PLY mesh");
+//DEFINE_double(point_plane_dis_threshold, 0.2, "");
+//DEFINE_double(normal_angle_threshold, 15.0, "");
+//DEFINE_double(center_normal_angle_threshold, 70.0, "");
+//DEFINE_double(energy_increase_threshold, 0.1, "");
+//DEFINE_double(island_cluster_border_ratio, 0.8, "");
+//DEFINE_double(simplification_border_edge_ratio, 0.05, "");
+//DEFINE_int32(swapping_loop_num, 300, "0 or a negative value means no swapping at all");
+//DEFINE_int32(smallest_connected_component_size, 20, "#faces in smallest connected components");
+//DEFINE_int32(smallest_inner_edge_number, 10, "");
+//DEFINE_bool(run_post_processing, true, "");
+//DEFINE_bool(run_mesh_simplification, true, "");
+//DEFINE_bool(output_mesh_face_color, true, "false for no face color in the output PLY mesh");
+const double point_plane_dis_threshold = 0.2;
+const double normal_angle_threshold = 15.0;
+const double center_normal_angle_threshold = 70.0;
+const double energy_increase_threshold = 0.1;
+const double island_cluster_border_ratio = 0.8;
+const double simplification_border_edge_ratio = 0.05;
+const int swapping_loop_num = 300;
+const int smallest_connected_component_size = 20;
+const int smallest_inner_edge_number=10;
+const bool run_post_processing = true;
+const bool run_mesh_simplification = true;
+const bool output_mesh_face_color = true;
 
 Partition::Partition()
 {
@@ -402,7 +414,7 @@ bool Partition::writePLY(const std::string& filename)
   fprintf(fout, "property float y\n");
   fprintf(fout, "property float z\n");
   /*
-    if (FLAGS_output_mesh_face_color)
+    if (output_mesh_face_color)
     {
         fprintf(fout, "property uchar red\n");  // face color
         fprintf(fout, "property uchar green\n");
@@ -414,7 +426,7 @@ bool Partition::writePLY(const std::string& filename)
   int fnum = flag_new_mesh_ ? new_face_num_ : face_num_;
   fprintf(fout, "element face %d\n", fnum);
   fprintf(fout, "property list uchar int vertex_indices\n");
-  if (FLAGS_output_mesh_face_color)
+  if (output_mesh_face_color)
   {
     fprintf(fout, "property uchar red\n");  // face color
     fprintf(fout, "property uchar green\n");
@@ -450,7 +462,7 @@ bool Partition::writePLY(const std::string& filename)
       }
       else
         fwrite(faces_[i].indices, sizeof(int), 3, fout);
-      if (FLAGS_output_mesh_face_color)
+      if (output_mesh_face_color)
       {
         int cidx = faces_[i].cluster_id;
         if (cidx == -1)
@@ -496,7 +508,7 @@ bool Partition::writePLY(const std::string& filename, double min_area)
   fprintf(fout, "element face %d\n", fnum);
   // TODO: change -----------------------------------------------------------------------------
   fprintf(fout, "property list uchar int vertex_indices\n");
-  if (FLAGS_output_mesh_face_color)
+  if (output_mesh_face_color)
   {
     fprintf(fout, "property uchar red\n");  // face color
     fprintf(fout, "property uchar green\n");
@@ -534,7 +546,7 @@ bool Partition::writePLY(const std::string& filename, double min_area)
       }
       else
         fwrite(faces_[i].indices, sizeof(int), 3, fout);
-      if (FLAGS_output_mesh_face_color)
+      if (output_mesh_face_color)
       {
         int cidx = faces_[i].cluster_id;
         if (cidx == -1)
@@ -820,7 +832,7 @@ bool Partition::writeTopPLYs(const std::string& basefilename, double area_thresh
       fprintf(fout, "property float z\n");
       fprintf(fout, "element face %d\n", fnum);
       fprintf(fout, "property list uchar int vertex_indices\n");
-      if (FLAGS_output_mesh_face_color)
+      if (output_mesh_face_color)
       {
         fprintf(fout, "property uchar red\n");  // face color
         fprintf(fout, "property uchar green\n");
@@ -839,7 +851,7 @@ bool Partition::writeTopPLYs(const std::string& basefilename, double area_thresh
 //      fprintf(fout_hat, "property float z\n");
 //      fprintf(fout_hat, "element face %d\n", fnum);
 //      fprintf(fout_hat, "property list uchar int vertex_indices\n");
-//      if (FLAGS_output_mesh_face_color)
+//      if (output_mesh_face_color)
 //      {
 //        fprintf(fout_hat, "property uchar red\n");  // face color
 //        fprintf(fout_hat, "property uchar green\n");
@@ -890,7 +902,7 @@ bool Partition::writeTopPLYs(const std::string& basefilename, double area_thresh
 //            fwrite(&vidx, sizeof(int), 1, fout_hat); //TODO: remove
           }
 
-          if (FLAGS_output_mesh_face_color)
+          if (output_mesh_face_color)
           {
             int cidx = faces_[i].cluster_id;
             if (cidx == -1)
@@ -1042,12 +1054,12 @@ bool Partition::runPartitionPipeline()
   if (!runMerging())
     return false;
 
-  if (FLAGS_swapping_loop_num > 0)
+  if (swapping_loop_num > 0)
   {
     PRINT_CYAN("(Optional) A further optimization by swapping cluster border faces.");
     runSwapping();
   }
-  if (FLAGS_run_post_processing)
+  if (run_post_processing)
   {
     PRINT_CYAN("Post processing: merge neighbor clusters.");
     PRINT_CYAN("#Initial Clusters: %d", curr_cluster_num_);
@@ -1353,7 +1365,7 @@ void Partition::runSwapping()
   cout << "Energy 0: " << last_energy * scale << " (scaled by " << scale << ")" << endl;
   double curr_energy = 0;
   int iter = 0;
-  while (iter++ < FLAGS_swapping_loop_num)
+  while (iter++ < swapping_loop_num)
   {
     int count_swap_faces = swapOnce();
     curr_energy = getTotalEnergy();
@@ -1674,7 +1686,7 @@ void Partition::runPostProcessing()
   // not use it.
   // removeSmallClusters();
   // // Only update vertex/face indices if faces are removed in 'removeSmallClusters()'
-  // if (flag_new_mesh_ && !FLAGS_run_mesh_simplification)
+  // if (flag_new_mesh_ && !run_mesh_simplification)
   // {
   //     // If running mesh simplification later, the following two steps will also be run later.
   //     updateNewMeshIndices();
@@ -1738,8 +1750,8 @@ void Partition::mergeAdjacentPlanes()
     clusters_[cidx].cov.computePlaneNormal();
     findClusterNeighbors(cidx);
   }
-  const double kNormalAngleThrsd = cos(kPI * FLAGS_normal_angle_threshold / 180);
-  const double kCenterNormalAngleThrsd = cos(kPI * FLAGS_center_normal_angle_threshold / 180);
+  const double kNormalAngleThrsd = cos(kPI * normal_angle_threshold / 180);
+  const double kCenterNormalAngleThrsd = cos(kPI * center_normal_angle_threshold / 180);
   float progress = 0.0f;  // for printing a progress bar
   const int kStep = (init_cluster_num_ < 100) ? 1 : (init_cluster_num_ / 100);
   for (int c1 = 0; c1 < init_cluster_num_; ++c1)
@@ -1769,13 +1781,13 @@ void Partition::mergeAdjacentPlanes()
       if (fabs(dir.dot(n1)) > kCenterNormalAngleThrsd || fabs(dir.dot(n2)) > kCenterNormalAngleThrsd)
         continue;  // skip plane pair if the direction of two centers is close to one plane normal
 
-      // if (computeMaxDisBetweenTwoPlanes(c1, c2, true) > FLAGS_point_plane_dis_threshold ||
-      //     computeMaxDisBetweenTwoPlanes(c2, c1, true) > FLAGS_point_plane_dis_threshold)
+      // if (computeMaxDisBetweenTwoPlanes(c1, c2, true) > point_plane_dis_threshold ||
+      //     computeMaxDisBetweenTwoPlanes(c2, c1, true) > point_plane_dis_threshold)
       //     continue;
-      // if (computeAvgDisBtwTwoPlanes(c1, c2) > FLAGS_point_plane_dis_threshold ||
-      //     computeAvgDisBtwTwoPlanes(c2, c1) > FLAGS_point_plane_dis_threshold)
+      // if (computeAvgDisBtwTwoPlanes(c1, c2) > point_plane_dis_threshold ||
+      //     computeAvgDisBtwTwoPlanes(c2, c1) > point_plane_dis_threshold)
       //     continue;  // skip plane pair if their distance is too far
-      if (computeMaxDisBetweenTwoPlanes(c1, c2, true) > FLAGS_point_plane_dis_threshold)
+      if (computeMaxDisBetweenTwoPlanes(c1, c2, true) > point_plane_dis_threshold)
         continue;
 
       // If passing all the above checks, merge cluster/plane c2 to c1
@@ -1839,7 +1851,7 @@ void Partition::mergeIslandClusters()
       continue;
 
     double cluster_border_ratio = static_cast<double>(count_cluster_border_faces) / count_border_faces;
-    if (cluster_border_ratio < FLAGS_island_cluster_border_ratio)
+    if (cluster_border_ratio < island_cluster_border_ratio)
       continue;  // skip planes with a large part of mesh border faces
     // Find the neighbor cluster corresponding to maximum border faces
     int target_nbr = -1, max_faces = 0;
@@ -1852,7 +1864,7 @@ void Partition::mergeIslandClusters()
       }
     }
     double prior_cluster_ratio = static_cast<double>(max_faces) / count_cluster_border_faces;
-    if (max_faces < FLAGS_island_cluster_border_ratio)
+    if (max_faces < island_cluster_border_ratio)
       continue;  // only merge island cluster while MOST of its border faces has a same neighbor cluster
 
     mergeClusters(target_nbr, cidx);
@@ -1876,7 +1888,7 @@ void Partition::removeSmallClusters()
   unordered_set<int> small_clusters;
   for (int cidx = 0; cidx < init_cluster_num_; ++cidx)
   {
-    if (!isClusterValid(cidx) || clusters_[cidx].faces.size() > FLAGS_smallest_connected_component_size ||
+    if (!isClusterValid(cidx) || clusters_[cidx].faces.size() > smallest_connected_component_size ||
         small_clusters.find(cidx) != small_clusters.end())
       continue;  // skip invalid or large or visited clusters
 
@@ -1902,7 +1914,7 @@ void Partition::removeSmallClusters()
       // is still small. Save them both and remove them later.
       if (faces_[f].cluster_id != cidx)
         visited_clusters.insert(faces_[f].cluster_id);
-      if (fset.size() > FLAGS_smallest_connected_component_size)
+      if (fset.size() > smallest_connected_component_size)
       {
         // Here we use the number of faces as the criteria to determine a small component.
         // Obviously this only works on the initial mesh which is usually created by some 3D
@@ -1960,7 +1972,7 @@ void Partition::updateNewMeshIndices()
   for (int i = 0; i < vertex_num_; ++i)
     vertices_[i].is_valid = false;
   new_face_num_ = 0;
-  if (FLAGS_run_mesh_simplification)
+  if (run_mesh_simplification)
   {  // Have to update faces in clusters after mesh simplification, since most faces are removed.
     for (int cidx = 0; cidx < init_cluster_num_; ++cidx)
     {
@@ -1975,7 +1987,7 @@ void Partition::updateNewMeshIndices()
       fidx_old2new_[fidx] = new_face_num_++;
       for (int j = 0; j < 3; ++j)
         vertices_[faces_[fidx].indices[j]].is_valid = true;
-      if (FLAGS_run_mesh_simplification)
+      if (run_mesh_simplification)
       {
         // Note to add new face index instead of original ones. Note that each face's cluster-id is still the same.
         clusters_[faces_[fidx].cluster_id].faces.insert(fidx_old2new_[fidx]);
@@ -2161,7 +2173,7 @@ void Partition::simplifyInnerEdges()
       printProgressBar(progress);
     }
     if (!isClusterValid(cidx) || cluster_inner_edges_.find(cidx) == cluster_inner_edges_.end() ||
-        cluster_inner_edges_[cidx].size() < FLAGS_smallest_inner_edge_number)
+        cluster_inner_edges_[cidx].size() < smallest_inner_edge_number)
       continue;
 
     releaseHeap();
@@ -2187,7 +2199,7 @@ void Partition::simplifyInnerEdges()
 
     // Simplify inner edges
     curr_edge_num_ = heap_.size();
-    while (curr_edge_num_ > FLAGS_smallest_inner_edge_number)
+    while (curr_edge_num_ > smallest_inner_edge_number)
     {
       Edge* edge = (Edge*)heap_.extract();
       if (!edge)
@@ -2213,7 +2225,7 @@ void Partition::simplifyInnerEdges()
         edge = nullptr;
       }
     }
-    assert(curr_edge_num_ <= FLAGS_smallest_inner_edge_number);
+    assert(curr_edge_num_ <= smallest_inner_edge_number);
   }
 }
 
@@ -2457,7 +2469,7 @@ void Partition::simplifyBorderEdges()
   // Simplify all border edges. This step is the same as simplifying inner-cluster edges.
   curr_edge_num_ = heap_.size();
   const int kTargetEdgeNum =
-      max(static_cast<int>(FLAGS_simplification_border_edge_ratio * curr_edge_num_), FLAGS_smallest_inner_edge_number);
+      max(static_cast<int>(simplification_border_edge_ratio * curr_edge_num_), smallest_inner_edge_number);
   while (curr_edge_num_ > kTargetEdgeNum)
   {
     Edge* edge = (Edge*)heap_.extract();
