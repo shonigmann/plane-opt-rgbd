@@ -9,51 +9,47 @@
 //#include "../common/tools.h"
 #include "tools.h"
 #include <chrono>
-#include <gflags/gflags.h>
-//#include <gflags/gflags_declare.h>
 
-using namespace google;
-//using namespace GFLAGS_NAMESPACE;
+#include "mesh_partition/MeshEnvironment.h"
+
+#include <gflags/gflags.h>
+//using namespace google;
 
 DECLARE_bool(run_post_processing);
 DECLARE_bool(run_mesh_simplification);
 
+class MeshPartitionNode
+{
+public:
+  MeshPartitionNode(){
+    //Topic you want to publish
+    // not sure what type to use... either  mesh_partition::Environment or Environment_ or Environment
+    pub_ = n_.advertise<mesh_partition::MeshEnvironment>("/part_mesh_env", 1);
+
+    //Topic you want to subscribe
+    sub_ = n_.subscribe("/clean_mesh_env", 1, &MeshPartitionNode::callback, this);
+  }
+
+  void callback(const mesh_partition::MeshEnvironment& input){
+    mesh_partition::MeshEnvironment output;
+    //.... do something with the input and generate the output...
+    pub_.publish(output);
+  }
+
+private:
+  ros::NodeHandle n_;
+  ros::Publisher pub_;
+  ros::Subscriber sub_;
+
+};
+
 int main(int argc, char** argv)
 {
-//    ParseCommandLineFlags(&argc, &argv, true);
+  ros::init(argc, argv, "mesh_partition_node");
+  MeshPartitionNode MPNode;
+
+  //ParseCommandLineFlags(&argc, &argv, true);
   gflags::ParseCommandLineFlags(&argc, &argv, true);
-
-  ros::init(argc, argv, "talker");
-  ros::NodeHandle n;
-  ros::Publisher chatter_pub = n.advertise<std_msgs::String>("chatter", 1000);
-  ros::Rate loop_rate(10);
-  int count = 0;
-
-  while(ros::ok()){
-    /**
-     * This is a message object. You stuff it with data, and then publish it.
-     */
-    std_msgs::String msg;
-
-    std::stringstream ss;
-    ss << "hello world " << count;
-    msg.data = ss.str();
-
-    ROS_INFO("%s", msg.data.c_str());
-
-    /**
-     * The publish() function is how you send messages. The parameter
-     * is the message object. The type of this object must agree with the type
-     * given as a template parameter to the advertise<>() call, as was done
-     * in the constructor above.
-     */
-    chatter_pub.publish(msg);
-
-    ros::spinOnce();
-
-    loop_rate.sleep();
-    ++count;
-  }  //END TUTORIAL CODE
 
     if (argc != 3 && argc != 5)
     {

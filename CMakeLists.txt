@@ -11,10 +11,11 @@ find_package(catkin REQUIRED COMPONENTS
   roscpp
   rospy
   std_msgs
+  geometry_msgs
   cmake_modules
-  # message_generation 
-  # perch_placement
+  message_generation
 )
+
 
 find_package(gflags REQUIRED)  # previously had Eigen3 here... 
 find_package(Eigen3 REQUIRED)  # not sure if required
@@ -48,11 +49,11 @@ find_package(Eigen3 REQUIRED)  # not sure if required
 ##   * add every package in MSG_DEP_SET to generate_messages(DEPENDENCIES ...)
 
 ## Generate messages in the 'msg' folder
-# add_message_files(
-#   FILES
-#   Message1.msg
-#   Message2.msg
-# )
+add_message_files(
+  FILES
+  MeshEnvironment.msg
+  PerchTarget.msg
+)
 
 ## Generate services in the 'srv' folder
 # add_service_files(
@@ -69,12 +70,11 @@ find_package(Eigen3 REQUIRED)  # not sure if required
 # )
 
 ## Generate added messages and services with any dependencies listed here
-#generate_messages(
-#  DEPENDENCIES
-#  std_msgs 
-#  geometry_msgs 
-#  perch_placement_msgs # Or other packages containing msgs
-#)
+generate_messages(
+  DEPENDENCIES
+  std_msgs
+  geometry_msgs
+)
 
 ################################################
 ## Declare ROS dynamic reconfigure parameters ##
@@ -108,8 +108,8 @@ find_package(Eigen3 REQUIRED)  # not sure if required
 catkin_package(
   INCLUDE_DIRS include #include/common include/mesh_partition
   LIBRARIES mesh_partition
-  CATKIN_DEPENDS message_runtime rospy roscpp # perch_placement # not sure about the last two...
-  DEPENDS gflags #eigen3 
+  CATKIN_DEPENDS message_runtime rospy roscpp # not sure about the last two...
+  DEPENDS gflags #perch_placement #eigen3 
 )
 
 ###########
@@ -126,12 +126,6 @@ include_directories(${eigen3_INCLUDE_DIR} "heap")
 include_directories(
  include
  ${catkin_INCLUDE_DIRS}
-# ${catkin_INCLUDE_DIRS}/common
-# ${catkin_INCLUDE_DIRS}/mesh_partition
-# ${catkin_INCLUDE_DIRS}/mesh_partition/heap
-# ${Eigen_INCLUDE_DIRS}  # removing temporarily to test above
-# ${Boost_INCLUDE_DIRS}
-# ${GSTREAMER_INCLUDE_DIRS}
 )
 
 ## Declare a C++ library
@@ -158,7 +152,7 @@ target_link_libraries(${PROJECT_NAME}_node ${PROJECT_NAME} ${catkin_LIBRARIES} g
 ## Add cmake target dependencies of the executable
 ## same as for the library above
 add_dependencies(${PROJECT_NAME}_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
-
+#add_dependencies(
 #############
 ## Install ##
 #############
@@ -169,24 +163,24 @@ add_dependencies(${PROJECT_NAME}_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catk
 
 ## Mark executables for installation
 ## See http://docs.ros.org/melodic/api/catkin/html/howto/format1/building_executables.html  # maybe include???
-#install(TARGETS ${PROJECT_NAME}_node
-#  RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
-#)
+install(TARGETS ${PROJECT_NAME}_node
+  RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
+)
 
 ## Mark libraries for installation
 ## See http://docs.ros.org/melodic/api/catkin/html/howto/format1/building_libraries.html
-# install(TARGETS ${PROJECT_NAME}
-#   ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
-#   LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
-#   RUNTIME DESTINATION ${CATKIN_GLOBAL_BIN_DESTINATION}
-# )
+install(TARGETS ${PROJECT_NAME}
+  ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
+  LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
+  RUNTIME DESTINATION ${CATKIN_GLOBAL_BIN_DESTINATION}
+)
 
 ## Mark cpp header files for installation  # MAYBE INCLUDE?
-# install(DIRECTORY include/${PROJECT_NAME}/
-#   DESTINATION ${CATKIN_PACKAGE_INCLUDE_DESTINATION}
-#   FILES_MATCHING PATTERN "*.h"
-#   PATTERN ".svn" EXCLUDE
-# )
+install(DIRECTORY include/${PROJECT_NAME}/
+  DESTINATION ${CATKIN_PACKAGE_INCLUDE_DESTINATION}
+  FILES_MATCHING PATTERN "*.h"
+  PATTERN ".svn" EXCLUDE
+)
 
 ## Mark other files for installation (e.g. launch and bag files, etc.)
 # install(FILES
