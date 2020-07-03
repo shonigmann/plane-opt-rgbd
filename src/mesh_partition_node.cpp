@@ -6,20 +6,16 @@
 
 #include <iostream>
 #include "partition.h"
-//#include "../common/tools.h"
 #include "tools.h"
 #include <chrono>
 
 #include "mesh_partition/MeshEnvironment.h"
+#include "mesh_partition/DenseEnvironment.h"
 
-//#include <gflags/gflags.h>
-//using namespace google;
-
-//DECLARE_bool(run_post_processing);
-//DECLARE_bool(run_mesh_simplification);
 const bool run_post_processing = true;
 const bool run_mesh_simplification = true;
 const bool output_mesh_face_color = true;
+const double cluster_area_threshold = 0.2;
 
 class MeshPartitionNode
 {
@@ -33,87 +29,38 @@ public:
     sub_ = n_.subscribe("/clean_mesh_env", 1, &MeshPartitionNode::callback, this);
   }
 
-  void callback(const mesh_partition::MeshEnvironment& input){
-    mesh_partition::MeshEnvironment output;
-    //.... do something with the input and generate the output...
-    pub_.publish(output);
-  }
+  void callback(const mesh_partition::DenseEnvironment& input){
+    // TODO: load parameters currently listed as globals (here and in partition.cpp) from configuration file
 
-private:
-  ros::NodeHandle n_;
-  ros::Publisher pub_;
-  ros::Subscriber sub_;
+    PRINT_CYAN("I received...");
+    PRINT_CYAN("Input PLY: %s", input.input_mesh.c_str());
+    PRINT_CYAN("Target Number of Clusters: %d", input.target_num_clusters);
+    PRINT_CYAN("Output PLY: %s", input.output_mesh.c_str());
+    PRINT_CYAN("Output Segmented Meshes: %s", input.segmented_mesh_clusters.c_str());
 
-};
-
-int main(int argc, char** argv)
-{
-  ros::init(argc, argv, "mesh_partition_node");
-  MeshPartitionNode MPNode;
-
-  //ParseCommandLineFlags(&argc, &argv, true);
-  //gflags::ParseCommandLineFlags(&argc, &argv, true);
-
-    if (argc != 3 && argc != 5)
-    {
-        PRINT_RED(
-            "Usage: mesh_partition input_ply [target_cluster_num / input_cluster_file] [output_ply] [output_cluster_file]");
-        cout << "Example:" << endl
-             << "\tmesh_partition in.ply 2000" << endl
-             << "\tmesh_partition in.ply in_cluster.txt [out.ply out_cluster.txt]" << endl;
-        return -1;
-    }
-    string ply_fname(argv[1]);
+    string ply_fname = input.input_mesh.c_str();
+    int target_cluster_num = input.target_num_clusters;
+    string out_ply_fname = input.output_mesh.c_str();
+    string out_cluster_fname = out_ply_fname.substr(0, out_ply_fname.length() - 4) + "-cluster" + to_string(target_cluster_num) + ".txt";
+    string segmented_mesh_clusters = input.segmented_mesh_clusters.c_str();
 
     Partition partition;
     PRINT_GREEN("Read ply file: %s", ply_fname.c_str());
     if (!partition.readPLY(ply_fname))
     {
         PRINT_RED("ERROR in reading ply file %s", ply_fname.c_str());
-        return -1;
     }
     partition.printModelInfo();
 
-    string cluster_fname(argv[2]);
     bool flag_read_cluster_file = false;
-    int target_cluster_num = -1;
-    if (cluster_fname.length() > 4 && cluster_fname.substr(cluster_fname.length() - 4) == ".txt")
-    {
-        PRINT_GREEN("Read cluster file %s", cluster_fname.c_str());
-        partition.readClusterFile(cluster_fname);
-        flag_read_cluster_file = true;
-        target_cluster_num = partition.getCurrentClusterNum();
-    }
-    else
-        target_cluster_num = atoi(argv[2]);
-    PRINT_GREEN("Initial cluster number: %d", target_cluster_num);
-
-    string out_fname = ply_fname.substr(0, ply_fname.length() - 4);
-    string out_ply_fname = out_fname + "-cluster" + to_string(target_cluster_num) + ".ply";
-    string out_cluster_fname = out_fname + "-cluster" + to_string(target_cluster_num) + ".txt";
-    if (argc == 5)
-    {
-        out_ply_fname = string(argv[3]);
-        out_cluster_fname = string(argv[4]);
-    }
     auto start = std::chrono::steady_clock::now();
     bool flag_success = true;
-    if (flag_read_cluster_file)
-    {
-        if (output_mesh_face_color)
-        {
-            PRINT_GREEN("Run post processing ...");
-            partition.runPostProcessing();
-            partition.doubleCheckClusters();
-        }
-    }
-    else
-    {
-        partition.setTargetClusterNum(target_cluster_num);
-        PRINT_GREEN("Run mesh partition ...");
-        flag_success = partition.runPartitionPipeline();
-        partition.doubleCheckClusters();
-    }
+
+    partition.setTargetClusterNum(target_cluster_num);
+    PRINT_GREEN("Run mesh partition ...");
+    flag_success = partition.runPartitionPipeline();
+    partition.doubleCheckClusters();
+
     if (run_mesh_simplification)
     {
         PRINT_GREEN("Run mesh simplification...");
@@ -132,12 +79,41 @@ int main(int argc, char** argv)
         partition.doubleCheckClusters();
         PRINT_GREEN("Final cluster number: %d", partition.getCurrentClusterNum());
         partition.updateClusters();
-        partition.writeTopPLYs("toptest", 0.5);
+        partition.writeTopPLYs(segmented_mesh_clusters, cluster_area_threshold);
 
         PRINT_GREEN("Write cluster file %s", out_cluster_fname.c_str());
         partition.writeClusterFile(out_cluster_fname);
         PRINT_GREEN("ALL DONE.");
     }
 
-    return 0;
+    mesh_partition::MeshEnvironment output;
+    //TODO: populate the header
+    output.surf_path_prototype = "test";
+    output.target_path_prototype = "";
+    output.full_env_path = "ply_fname";
+    output.clustered_env_path = "out_ply_fname";
+
+    pub_.publish(output);
+  }
+
+  private:
+    ros::NodeHandle n_;
+    ros::Publisher pub_;
+    ros::Subscriber sub_;
+
+  private:
+    bool MeshClean(){
+     //TODO:
+
+    }
+};
+
+int main(int argc, char** argv)
+{
+  ros::init(argc, argv, "mesh_partition_node");
+  MeshPartitionNode MPNode;
+
+  ros::spin();
+
+  return 0;
 }

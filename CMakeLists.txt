@@ -30,6 +30,7 @@ add_message_files(
   FILES
   MeshEnvironment.msg
   PerchTarget.msg
+  DenseEnvironment.msg
 )
 
 ## Generate added messages and services with any dependencies listed here

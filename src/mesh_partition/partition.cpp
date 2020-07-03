@@ -257,8 +257,11 @@ bool Partition::readPLY(const std::string& filename)
         {
           cout << "ERROR in reading PLY vertex colors in position " << ftell(fin) << endl;
           return false;
+        }else{
+          //TODO: STORE VERTEX COLOR AND USE TO CONSIDER CLUSTER MERGING...
         }
         // NOTE: abandon vertex color
+
       }
       if (vertex_quality_dim)
       {
@@ -579,6 +582,13 @@ bool Partition::writePLY(const std::string& filename, double min_area)
 //! Write a PLY file for each cluster that meets specified criteria
 bool Partition::writeTopPLYs(const std::string& basefilename, double area_threshold, Vector3d gravity_direction)//=Vector3d(0,1,0))
 {
+  string basename = basefilename.c_str();
+  if(basefilename.substr(basefilename.length() - 4, basefilename.length()).compare(".ply") || basefilename.substr(basefilename.length() - 4, basefilename.length()).compare(".PLY")){
+    basename = (basefilename.substr(0, basefilename.length() - 4)).c_str();
+  }
+
+  PRINT_RED("test: %s", basename.c_str());
+
 //  ofstream plane_text;
 //  plane_text.open("planar_reconstruction_test.txt");  // write in binary mode
 
@@ -786,25 +796,7 @@ bool Partition::writeTopPLYs(const std::string& basefilename, double area_thresh
           }
         }
       }
-
-//      //now i need to figure out which is the outer loop
-//      if (loops.size()>0){
-//        int l = 0;
-//        for(vector<int> loop : loops){
-//          // quick and dirty file write for now..
-//          plane_text << "Loop " << l << ":" << endl;
-//          l++;
-//          for(int v : loop)
-//            plane_text << cluster_vert_old2new[c][v] << ", ";
-//          plane_text << endl;
-//        }
-//      }
-
-      //----------------------------------------------------------------
-      //----------------------------------------------------------------
-      //----------------------------------------------------------------
-
-      const std::string& filename = basefilename + std::to_string(cluster_count) + ".ply";
+      const std::string& filename = basename + std::to_string(cluster_count) + ".ply";
 //      const std::string& filename_hat = basefilename + std::to_string(cluster_count) + "_hat.ply"; //TODO remove
       cluster_count++;  //keep track of how many clusters meet requirements to update file name.
 
