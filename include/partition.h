@@ -4,6 +4,7 @@
 #include <iostream>
 #include <set>
 #include <string>
+#include <utility>
 #include <vector>
 #include <unordered_set>
 #include <unordered_map>
@@ -40,6 +41,8 @@ public:
     {
         bool is_valid;  // false if it is removed (all its adjacent faces are removed)
         int cluster_id;
+
+        Vector3d color; //TODO: implement
         Vector3d pt;
         unordered_set<int> nbr_vertices, nbr_faces;
         vector<Edge*> nbr_edges;
@@ -53,6 +56,7 @@ public:
         bool is_visited;  // used in Breadth-first search to get connected components in clusters
         bool is_valid;    // false if this face is removed.
         int indices[3];
+        Vector3d color; //TODO: implement
         double area;
         CovObj cov;
         unordered_set<int> nbr_faces;
@@ -71,6 +75,7 @@ public:
         unordered_set<int> nbr_clusters;
         vector<SwapFace> faces_to_swap;
         Vector3f color;
+        Vector3d avg_color;
         CovObj cov;
         Cluster() : energy(0), area(0.0) {}
     };
@@ -159,7 +164,144 @@ private:
     Vector3d computeClusterCentroid(int c){
       return clusters_[c].cov.center_;
     }
-    void changeClusterNormalDirection(int cidx, Vector3f grav_dir);
+
+    /* Color Management */
+    double computeColorDiffBetweenPlanes(int c1, int c2);
+    void updateClusterColor(int c);
+    static Vector3d rgb2xyz(Vector3d rgb){
+
+        double var_R = ( rgb[0] / 255.0 );
+        double var_G = ( rgb[1] / 255.0 );
+        double var_B = ( rgb[2] / 255.0 );
+
+        if ( var_R > 0.04045 ){
+            var_R = pow( ( var_R + 0.055 ) / 1.055, 2.4);
+        }
+        else{
+            var_R /= 12.92;
+        }
+        if ( var_G > 0.04045 ){
+            var_G =  pow(( var_G + 0.055 ) / 1.055, 2.4);
+        }
+        else{
+            var_G /= 12.92;
+        }
+        if ( var_B > 0.04045 ){
+            var_B = pow(( var_B + 0.055 ) / 1.055, 2.4);
+        }
+        else{
+            var_B /= 12.92;
+        }
+
+        var_R *= 100.0;
+        var_G *= 100.0;
+        var_B *= 100.0;
+
+        double X = var_R * 0.4124 + var_G * 0.3576 + var_B * 0.1805;
+        double Y = var_R * 0.2126 + var_G * 0.7152 + var_B * 0.0722;
+        double Z = var_R * 0.0193 + var_G * 0.1192 + var_B * 0.9505;
+
+        Vector3d xyz(X, Y, Z);
+        return {xyz};
+    }
+    static Vector3d xyz2lab(Vector3d xyz){
+        double var_X = xyz[0] / ReferenceX;
+        double var_Y = xyz[1] / ReferenceY;
+        double var_Z = xyz[2] / ReferenceZ;
+
+        if ( var_X > 0.008856 )
+            var_X = pow(var_X, 1.0/3.0);
+        else
+            var_X = ( 7.787 * var_X ) + ( 16.0 / 116.0 );
+        if ( var_Y > 0.008856 )
+            var_Y = pow(var_Y, 1.0/3.0);
+        else
+            var_Y = ( 7.787 * var_Y ) + ( 16.0 / 116.0 );
+        if ( var_Z > 0.008856 )
+            var_Z = pow(var_Z, 1.0/3.0);
+        else
+            var_Z = ( 7.787 * var_Z ) + ( 16.0 / 116.0 );
+
+        double L = ( 116.0 * var_Y ) - 16;
+        double A = 500.0 * ( var_X - var_Y );
+        double B = 200.0 * ( var_Y - var_Z );
+        Vector3d lab(L, A, B);
+        return {lab};
+    }
+    static Vector3d rgb2lab(Vector3d rgb){
+        return xyz2lab(rgb2xyz(std::move(rgb)));
+    }
+
+    static Vector3d lab2xyz(Vector3d lab){
+        double var_Y = ( lab[0] + 16.0 ) / 116.0;
+        double var_X = lab[1] / 500.0 + var_Y;
+        double var_Z = var_Y - lab[2] / 200.0;
+
+        if ( pow(var_Y, 3.0)  > 0.008856 )
+            var_Y = pow(var_Y, 3.0);
+        else
+            var_Y = ( var_Y - 16.0 / 116.0 ) / 7.787;
+        if ( pow(var_X,3)  > 0.008856 )
+            var_X = pow(var_X, 3.0);
+        else
+            var_X = ( var_X - 16.0 / 116.0 ) / 7.787;
+        if ( pow(var_Z, 3.0)  > 0.008856 )
+            var_Z = pow(var_Z, 3.0);
+        else
+            var_Z = ( var_Z - 16.0 / 116.0 ) / 7.787;
+
+        double X = var_X * ReferenceX;
+        double Y = var_Y * ReferenceY;
+        double Z = var_Z * ReferenceZ;
+        Vector3d xyz(X, Y, Z);
+        return {xyz};
+    }
+    static Vector3d xyz2rgb(Vector3d xyz){
+        double var_X = xyz[0] / 100.0;
+        double var_Y = xyz[1] / 100.0;
+        double var_Z = xyz[2] / 100.0;
+
+        double var_R = var_X *  3.2406 + var_Y * -1.5372 + var_Z * -0.4986;
+        double var_G = var_X * -0.9689 + var_Y *  1.8758 + var_Z *  0.0415;
+        double var_B = var_X *  0.0557 + var_Y * -0.2040 + var_Z *  1.0570;
+
+        if ( var_R > 0.0031308 )
+            var_R = 1.055 * pow(var_R, ( 1.0 / 2.4 )) - 0.055;
+        else
+            var_R = 12.92 * var_R;
+        if ( var_G > 0.0031308 )
+            var_G = 1.055 * pow(var_G, ( 1.0 / 2.4 )) - 0.055;
+        else
+            var_G = 12.92 * var_G;
+        if ( var_B > 0.0031308 )
+            var_B = 1.055 * pow(var_B, ( 1.0 / 2.4 )) - 0.055;
+        else
+            var_B = 12.92 * var_B;
+
+        double R = var_R * 255.0;
+        double G = var_G * 255.0;
+        double B = var_B * 255.0;
+        Vector3d rgb(R, G, B);
+        return {rgb};
+    }
+    static Vector3d lab2rgb(Vector3d lab){
+        return xyz2rgb(lab2xyz(std::move(lab)));
+    }
+
+    static Vector3d rgb2yuv(Vector3d rgb){
+        double y = Wr*rgb[0] + Wg*rgb[1] + Wb*rgb[2];  // Y'
+        double u = U_max*(rgb[2]-y)/(1-Wb);
+        double v = V_max*(rgb[0]-y)/(1-Wr);
+        Vector3d yuv(y, u, v);
+        return {yuv};
+    }
+    static Vector3d yuv2rgb(Vector3d yuv){
+        double R = yuv[0] + yuv[2]*(1-Wr)/V_max;
+        double G = yuv[0] + yuv[1]*Wb*(1-Wb)/(U_max*Wg)-yuv[2]*Wr*(1-Wr)/(V_max*Wg);
+        double B = yuv[0] + yuv[1]*(1-Wb)/U_max;
+        Vector3d rgb(R, G, B);
+        return {rgb};
+    }
 
     /* Small functions */
     template <typename T> int sgn(T val) {
@@ -192,7 +334,6 @@ private:
     map<int, unordered_map<int, int>> cluster_vert_new2old;
     Vector3d mesh_centroid_;
 
-
     int vertex_num_, face_num_;
     int init_cluster_num_, curr_cluster_num_, target_cluster_num_;
     bool flag_read_cluster_file_;
@@ -216,6 +357,15 @@ private:
     // However, equal values work well in experiments.
     const double kFaceCoefficient = 1.0, kPointCoefficient = 1.0;
     int curr_edge_num_;
+
+    constexpr static const double Wr = 0.299;  // red weight
+    constexpr static const double Wg = 0.587;  // green weight
+    constexpr static const double Wb = 0.114;  // blue weight
+    constexpr static const double U_max = 0.436;
+    constexpr static const double V_max = 0.615;
+    constexpr static const double ReferenceX = 100.0;  // equal energy reference (http://www.easyrgb.com/en/math.php)
+    constexpr static const double ReferenceY = 100.0;
+    constexpr static const double ReferenceZ = 100.0;
 };
 
 #endif  // !PARTITION_H

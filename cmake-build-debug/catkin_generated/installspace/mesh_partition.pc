@@ -1,0 +1,8 @@
+prefix=/usr/local
+
+Name: mesh_partition
+Description: Description of mesh_partition
+Version: 0.0.0
+Cflags: -I${prefix}/include
+Libs: -L${prefix}/lib -lmesh_partition -lgflags
+Requires: message_runtime rospy roscpp

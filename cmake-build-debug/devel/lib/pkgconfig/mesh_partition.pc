@@ -1,0 +1,8 @@
+prefix=/home/simon/catkin_ws/src/mesh_partition/cmake-build-debug/devel
+
+Name: mesh_partition
+Description: Description of mesh_partition
+Version: 0.0.0
+Cflags: -I/home/simon/catkin_ws/src/mesh_partition/cmake-build-debug/devel/include -I/home/simon/catkin_ws/src/mesh_partition/include
+Libs: -L${prefix}/lib -lmesh_partition -lgflags
+Requires: message_runtime rospy roscpp

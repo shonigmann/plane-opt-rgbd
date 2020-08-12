@@ -23,7 +23,7 @@ public:
   MeshPartitionNode(){
     //Topic you want to publish
     // not sure what type to use... either  mesh_partition::Environment or Environment_ or Environment
-    pub_ = n_.advertise<mesh_partition::MeshEnvironment>("/part_mesh_env", 1);
+    pub_ = n_.advertise<mesh_partition::MeshEnvironment>("/part_mesh_env", 10);
 
     //Topic you want to subscribe
     sub_ = n_.subscribe("/clean_mesh_env", 1, &MeshPartitionNode::callback, this);
@@ -32,7 +32,7 @@ public:
   void callback(const mesh_partition::DenseEnvironment& input){
     // TODO: load parameters currently listed as globals (here and in partition.cpp) from configuration file
 
-    PRINT_CYAN("I received...");
+    PRINT_CYAN("Mesh Partition:");
     PRINT_CYAN("Input PLY: %s", input.input_mesh.c_str());
     PRINT_CYAN("Target Number of Clusters: %d", input.target_num_clusters);
     PRINT_CYAN("Output PLY: %s", input.output_mesh.c_str());
@@ -81,17 +81,16 @@ public:
         partition.updateClusters();
         partition.writeTopPLYs(segmented_mesh_clusters, cluster_area_threshold);
 
-        PRINT_GREEN("Write cluster file %s", out_cluster_fname.c_str());
+//        PRINT_GREEN("Write cluster file %s", out_cluster_fname.c_str());
         partition.writeClusterFile(out_cluster_fname);
         PRINT_GREEN("ALL DONE.");
     }
 
     mesh_partition::MeshEnvironment output;
-    //TODO: populate the header
-    output.surf_path_prototype = "test";
-    output.target_path_prototype = "";
-    output.full_env_path = "ply_fname";
-    output.clustered_env_path = "out_ply_fname";
+    output.surf_path_prototype = segmented_mesh_clusters;
+//    output.target_path_prototype = "";  // TODO
+    output.full_env_path = ply_fname;
+    output.clustered_env_path = out_ply_fname;
 
     pub_.publish(output);
   }
